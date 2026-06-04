@@ -1,3 +1,5 @@
+'use server'
+
 import { SignupFormSchema, FormState } from '@/app/lib/definitions'
  
 export async function signup(state: FormState, formData: FormData) {

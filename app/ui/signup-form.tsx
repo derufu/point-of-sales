@@ -6,19 +6,22 @@ import { useActionState } from 'react'
 export default function SignupForm() {
   const [state, action, pending] = useActionState(signup, undefined)
  
+  const nameError = state?.errors?.name?.[0]
+  const emailError = state?.errors?.email?.[0]
+
   return (
     <form action={action}>
       <div>
         <label htmlFor="name">Name</label>
         <input id="name" name="name" placeholder="Name" />
       </div>
-      {state?.errors?.name && <p>{state.errors.name}</p>}
+      {nameError && <p>{nameError}</p>}
  
       <div>
         <label htmlFor="email">Email</label>
         <input id="email" name="email" placeholder="Email" />
       </div>
-      {state?.errors?.email && <p>{state.errors.email}</p>}
+      {emailError && <p>{emailError}</p>}
  
       <div>
         <label htmlFor="password">Password</label>
