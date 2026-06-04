@@ -1,158 +1,154 @@
-"use client";
+'use client';
 
-import { useActionState } from "react";
-import { signup } from "@/app/actions/auth";
-import { Button } from "@/components/ui/button";
-import Link from "next/link";
-import { ArrowRight, Eye, EyeOff, Mail, Lock, User } from "lucide-react";
-import { useState } from "react";
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card } from '@/components/ui/card';
+import { signup } from '@/app/actions/auth';
+import { Coffee, Loader2 } from 'lucide-react';
+import Link from 'next/link';
 
 export default function SignupPage() {
-  const [state, formAction] = useActionState(signup, {});
-  const actionState = state ?? {};
-  const [showPassword, setShowPassword] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [storeName, setStoreName] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const result = await signup(email, password, storeName);
+      if (result?.error) {
+        setError(result.error);
+      }
+    } catch {
+      setError('An unexpected error occurred');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-zinc-50 to-zinc-100 dark:from-black dark:to-zinc-900 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        {/* Header */}
+        {/* Logo */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-50">
-            Create Account
-          </h1>
-          <p className="text-zinc-600 dark:text-zinc-400 mt-2">
-            Join POS System and start managing your business
+          <div className="flex items-center justify-center gap-2 mb-4">
+            <Coffee className="w-10 h-10 text-amber-700 dark:text-amber-400" />
+            <span className="text-3xl font-bold text-slate-900 dark:text-white">BrewPOS</span>
+          </div>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Get Started</h1>
+          <p className="text-slate-600 dark:text-slate-400 mt-2">
+            Create your coffee shop account today
           </p>
         </div>
 
-        {/* Form */}
-        <form action={formAction} className="space-y-4">
-          {/* Name Field */}
-          <div>
-            <label
-              htmlFor="name"
-              className="block text-sm font-medium text-zinc-900 dark:text-zinc-50 mb-2"
-            >
-              Full Name
-            </label>
-            <div className="relative">
-              <User className="absolute left-3 top-3 h-5 w-5 text-zinc-400" />
-              <input
-                id="name"
-                name="name"
+        {/* Signup Form */}
+        <Card className="p-8 bg-white dark:bg-slate-800 border-0 shadow-lg rounded-2xl">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {error && (
+              <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800">
+                <p className="text-sm text-red-800 dark:text-red-200">{error}</p>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="storeName" className="text-slate-700 dark:text-slate-300">
+                Coffee Shop Name
+              </Label>
+              <Input
+                id="storeName"
                 type="text"
-                placeholder="John Doe"
+                placeholder="My Awesome Coffee"
+                value={storeName}
+                onChange={(e) => setStoreName(e.target.value)}
                 required
-                className="w-full pl-10 pr-4 py-2 rounded-lg border border-zinc-300 bg-white text-zinc-900 placeholder-zinc-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 dark:placeholder-zinc-400"
+                disabled={loading}
+                className="rounded-lg h-10 bg-slate-50 dark:bg-slate-700 border-slate-200 dark:border-slate-600"
               />
             </div>
-            {actionState.errors?.name && (
-              <p className="mt-1 text-sm text-red-500">{actionState.errors.name[0]}</p>
-            )}
-          </div>
 
-          {/* Email Field */}
-          <div>
-            <label
-              htmlFor="email"
-              className="block text-sm font-medium text-zinc-900 dark:text-zinc-50 mb-2"
-            >
-              Email
-            </label>
-            <div className="relative">
-              <Mail className="absolute left-3 top-3 h-5 w-5 text-zinc-400" />
-              <input
+            <div className="space-y-2">
+              <Label htmlFor="email" className="text-slate-700 dark:text-slate-300">
+                Email Address
+              </Label>
+              <Input
                 id="email"
-                name="email"
                 type="email"
                 placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full pl-10 pr-4 py-2 rounded-lg border border-zinc-300 bg-white text-zinc-900 placeholder-zinc-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 dark:placeholder-zinc-400"
+                disabled={loading}
+                className="rounded-lg h-10 bg-slate-50 dark:bg-slate-700 border-slate-200 dark:border-slate-600"
               />
             </div>
-            {actionState.errors?.email && (
-              <p className="mt-1 text-sm text-red-500">
-                {actionState.errors.email[0]}
-              </p>
-            )}
-          </div>
 
-          {/* Password Field */}
-          <div>
-            <label
-              htmlFor="password"
-              className="block text-sm font-medium text-zinc-900 dark:text-zinc-50 mb-2"
-            >
-              Password
-            </label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-3 h-5 w-5 text-zinc-400" />
-              <input
+            <div className="space-y-2">
+              <Label htmlFor="password" className="text-slate-700 dark:text-slate-300">
+                Password
+              </Label>
+              <Input
                 id="password"
-                name="password"
-                type={showPassword ? "text" : "password"}
+                type="password"
                 placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 required
-                className="w-full pl-10 pr-10 py-2 rounded-lg border border-zinc-300 bg-white text-zinc-900 placeholder-zinc-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 dark:placeholder-zinc-400"
+                disabled={loading}
+                className="rounded-lg h-10 bg-slate-50 dark:bg-slate-700 border-slate-200 dark:border-slate-600"
               />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-3 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
-              >
-                {showPassword ? (
-                  <EyeOff className="h-5 w-5" />
-                ) : (
-                  <Eye className="h-5 w-5" />
-                )}
-              </button>
-            </div>
-            {actionState.errors?.password && (
-              <p className="mt-1 text-sm text-red-500">
-                {actionState.errors.password[0]}
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                At least 6 characters
               </p>
-            )}
-            <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
-              Password must have 8+ characters, uppercase, number, and special
-              character (!@#$%^&*)
+            </div>
+
+            <Button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-lg h-10"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Creating account...
+                </>
+              ) : (
+                'Create Account'
+              )}
+            </Button>
+          </form>
+
+          <div className="mt-6 text-center">
+            <p className="text-slate-600 dark:text-slate-400">
+              Already have an account?{' '}
+              <Link
+                href="/auth/login"
+                className="text-amber-600 dark:text-amber-400 font-semibold hover:underline"
+              >
+                Sign in here
+              </Link>
             </p>
           </div>
+        </Card>
 
-          {/* Error Message */}
-          {actionState.message && (
-            <div className="p-3 rounded-lg bg-red-50 border border-red-200 dark:bg-red-900/20 dark:border-red-800">
-              <p className="text-sm text-red-700 dark:text-red-300">
-                {actionState.message}
-              </p>
-            </div>
-          )}
-
-          {/* Submit Button */}
-          <Button
-            type="submit"
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
-          >
-            Create Account <ArrowRight className="h-4 w-4" />
-          </Button>
-        </form>
-
-        {/* Divider */}
-        <div className="my-6 flex items-center gap-3">
-          <div className="flex-1 h-px bg-zinc-300 dark:bg-zinc-700" />
-          <span className="text-sm text-zinc-500 dark:text-zinc-400">OR</span>
-          <div className="flex-1 h-px bg-zinc-300 dark:bg-zinc-700" />
+        {/* Info */}
+        <div className="mt-8 p-4 rounded-lg bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800">
+          <p className="text-sm text-blue-800 dark:text-blue-200">
+            <strong>Note:</strong> Confirm your email after signup to start using BrewPOS.
+          </p>
         </div>
-
-        {/* Sign In Link */}
-        <p className="text-center text-sm text-zinc-600 dark:text-zinc-400">
-          Already have an account?{" "}
-          <Link
-            href="/auth/login"
-            className="font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-          >
-            Sign in
-          </Link>
-        </p>
       </div>
     </div>
   );
