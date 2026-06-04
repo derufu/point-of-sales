@@ -56,6 +56,11 @@ export default function DashboardPage() {
               <p className="text-sm text-slate-600 dark:text-slate-400">Welcome back!</p>
               <p className="text-base font-semibold text-slate-900 dark:text-white">{user?.email}</p>
             </div>
+            <Link href="/profile">
+              <Button variant="outline" size="sm" className="rounded-lg border-slate-200 dark:border-slate-700">
+                Profile
+              </Button>
+            </Link>
             <Button
               onClick={handleLogout}
               variant="outline"

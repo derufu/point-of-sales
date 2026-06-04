@@ -63,6 +63,11 @@ export default function LandingPage() {
               <>
                 {user ? (
                   <>
+                    <Link href="/profile">
+                      <Button variant="outline" className="rounded-full border-slate-200 dark:border-slate-700">
+                        Profile
+                      </Button>
+                    </Link>
                     <Link href="/dashboard">
                       <Button variant="outline" className="rounded-full border-slate-200 dark:border-slate-700">
                         Dashboard
