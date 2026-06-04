@@ -3,7 +3,10 @@
 import Link from "next/link";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Mail, Phone, MapPin, Edit2, Save, X } from "lucide-react";
+import { ArrowLeft, Mail, Phone, MapPin, Edit2, Save, X, LogOut } from "lucide-react";
+import { logout } from "@/app/actions/auth";
+import { useEffect } from "react";
+import { createClient } from "@/lib/supabase/client";
 
 interface UserProfile {
   name: string;
@@ -11,21 +14,43 @@ interface UserProfile {
   phone: string;
   location: string;
   bio: string;
-  joinDate: string;
 }
 
 export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [profile, setProfile] = useState<UserProfile>({
-    name: "John Doe",
-    email: "john@example.com",
-    phone: "+1 (555) 123-4567",
-    location: "San Francisco, CA",
-    bio: "Business owner and POS system enthusiast.",
-    joinDate: "January 15, 2025",
+    name: "",
+    email: "",
+    phone: "",
+    location: "",
+    bio: "",
   });
-
   const [formData, setFormData] = useState(profile);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadUserProfile = async () => {
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (user) {
+        const userData: UserProfile = {
+          name: user.user_metadata?.full_name || user.email || "",
+          email: user.email || "",
+          phone: user.user_metadata?.phone || "",
+          location: user.user_metadata?.location || "",
+          bio: user.user_metadata?.bio || "",
+        };
+        setProfile(userData);
+        setFormData(userData);
+      }
+      setLoading(false);
+    };
+
+    loadUserProfile();
+  }, []);
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -37,9 +62,24 @@ export default function ProfilePage() {
     });
   };
 
-  const handleSave = () => {
-    setProfile(formData);
-    setIsEditing(false);
+  const handleSave = async () => {
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (user) {
+      await supabase.auth.updateUser({
+        data: {
+          full_name: formData.name,
+          phone: formData.phone,
+          location: formData.location,
+          bio: formData.bio,
+        },
+      });
+      setProfile(formData);
+      setIsEditing(false);
+    }
   };
 
   const handleCancel = () => {
@@ -47,21 +87,33 @@ export default function ProfilePage() {
     setIsEditing(false);
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-zinc-50 to-zinc-100 dark:from-black dark:to-zinc-900">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <p className="mt-4 text-zinc-600 dark:text-zinc-400">Loading profile...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-zinc-50 to-zinc-100 dark:from-black dark:to-zinc-900">
       {/* Navigation */}
-      <nav className="flex items-center justify-between px-6 py-4 lg:px-12">
+      <nav className="flex items-center justify-between px-6 py-4 lg:px-12 border-b border-zinc-200 dark:border-zinc-800">
         <Link href="/" className="flex items-center gap-2">
           <ArrowLeft className="h-5 w-5" />
           <span className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">
             POS System
           </span>
         </Link>
-        <div className="flex gap-4">
-          <Link href="/auth">
-            <Button>Sign Out</Button>
-          </Link>
-        </div>
+        <form action={logout}>
+          <Button variant="destructive" className="gap-2">
+            <LogOut className="h-4 w-4" />
+            Logout
+          </Button>
+        </form>
       </nav>
 
       {/* Profile Content */}
@@ -101,14 +153,16 @@ export default function ProfilePage() {
             {/* Profile Avatar */}
             <div className="mt-8 flex items-center gap-4">
               <div className="h-24 w-24 rounded-full bg-gradient-to-r from-blue-600 to-blue-400 flex items-center justify-center">
-                <span className="text-4xl font-bold text-white">JD</span>
+                <span className="text-4xl font-bold text-white">
+                  {profile.name.charAt(0).toUpperCase()}
+                </span>
               </div>
               <div>
                 <p className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
-                  {profile.name}
+                  {profile.name || "User"}
                 </p>
                 <p className="text-zinc-600 dark:text-zinc-400">
-                  Member since {profile.joinDate}
+                  {profile.email}
                 </p>
               </div>
             </div>
@@ -141,19 +195,9 @@ export default function ProfilePage() {
                   <Mail className="h-4 w-4" />
                   Email
                 </label>
-                {isEditing ? (
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    className="mt-2 w-full rounded-lg border border-zinc-300 bg-white px-4 py-2 text-zinc-900 placeholder-zinc-500 focus:border-blue-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-50 dark:placeholder-zinc-400"
-                  />
-                ) : (
-                  <p className="mt-2 text-zinc-700 dark:text-zinc-300">
-                    {profile.email}
-                  </p>
-                )}
+                <p className="mt-2 text-zinc-700 dark:text-zinc-300">
+                  {profile.email}
+                </p>
               </div>
 
               {/* Phone */}
@@ -172,7 +216,7 @@ export default function ProfilePage() {
                   />
                 ) : (
                   <p className="mt-2 text-zinc-700 dark:text-zinc-300">
-                    {profile.phone}
+                    {profile.phone || "Not provided"}
                   </p>
                 )}
               </div>
@@ -193,7 +237,7 @@ export default function ProfilePage() {
                   />
                 ) : (
                   <p className="mt-2 text-zinc-700 dark:text-zinc-300">
-                    {profile.location}
+                    {profile.location || "Not provided"}
                   </p>
                 )}
               </div>
@@ -213,7 +257,7 @@ export default function ProfilePage() {
                   />
                 ) : (
                   <p className="mt-2 text-zinc-700 dark:text-zinc-300">
-                    {profile.bio}
+                    {profile.bio || "Not provided"}
                   </p>
                 )}
               </div>
@@ -237,30 +281,6 @@ export default function ProfilePage() {
                 </button>
               </div>
             )}
-          </div>
-
-          {/* Quick Actions */}
-          <div className="mt-8 grid gap-4 md:grid-cols-2">
-            <Link href="/profile/settings">
-              <div className="rounded-lg bg-white p-6 shadow-sm transition-shadow hover:shadow-md dark:bg-zinc-800">
-                <h3 className="font-semibold text-zinc-900 dark:text-zinc-50">
-                  Settings
-                </h3>
-                <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-                  Manage your account preferences
-                </p>
-              </div>
-            </Link>
-            <Link href="/profile/security">
-              <div className="rounded-lg bg-white p-6 shadow-sm transition-shadow hover:shadow-md dark:bg-zinc-800">
-                <h3 className="font-semibold text-zinc-900 dark:text-zinc-50">
-                  Security
-                </h3>
-                <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-                  Update your password and security settings
-                </p>
-              </div>
-            </Link>
           </div>
         </div>
       </section>

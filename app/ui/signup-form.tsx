@@ -4,7 +4,7 @@ import { signup } from '@/app/actions/auth'
 import { useActionState } from 'react'
  
 export default function SignupForm() {
-  const [state, action, pending] = useActionState(signup, undefined)
+  const [state, action, pending] = useActionState(signup, {} as any)
  
   return (
     <form action={action}>
@@ -28,12 +28,13 @@ export default function SignupForm() {
         <div>
           <p>Password must:</p>
           <ul>
-            {state.errors.password.map((error) => (
+            {state.errors.password.map((error: string) => (
               <li key={error}>- {error}</li>
             ))}
           </ul>
         </div>
       )}
+      {state?.message && <p>{state.message}</p>}
       <button disabled={pending} type="submit">
         Sign Up
       </button>
