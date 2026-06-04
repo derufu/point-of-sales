@@ -1,22 +1,41 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, BarChart3, Users, Zap } from "lucide-react";
+import { ArrowRight, BarChart3, Users, Zap, LogOut } from "lucide-react";
+import { getUser, logout } from "@/app/actions/auth";
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  const user = await getUser();
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-zinc-50 to-zinc-100 dark:from-black dark:to-zinc-900">
       {/* Navigation */}
-      <nav className="flex items-center justify-between px-6 py-4 lg:px-12">
+      <nav className="flex items-center justify-between px-6 py-4 lg:px-12 border-b border-zinc-200 dark:border-zinc-800">
         <div className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">
           POS System
         </div>
         <div className="flex gap-4">
-          <Link href="/profile">
-            <Button variant="ghost">Profile</Button>
-          </Link>
-          <Link href="/auth">
-            <Button>Get Started</Button>
-          </Link>
+          {user ? (
+            <>
+              <Link href="/profile">
+                <Button variant="ghost">Profile</Button>
+              </Link>
+              <form action={logout}>
+                <Button variant="destructive" className="gap-2">
+                  <LogOut className="h-4 w-4" />
+                  Logout
+                </Button>
+              </form>
+            </>
+          ) : (
+            <>
+              <Link href="/auth/login">
+                <Button variant="ghost">Sign In</Button>
+              </Link>
+              <Link href="/auth/signup">
+                <Button>Get Started</Button>
+              </Link>
+            </>
+          )}
         </div>
       </nav>
 
@@ -30,16 +49,28 @@ export default function LandingPage() {
           Manage inventory, sales, and customer relationships all in one place.
         </p>
         <div className="mt-10 flex flex-col gap-4 sm:flex-row">
-          <Link href="/auth">
-            <Button size="lg" className="gap-2">
-              Start Now <ArrowRight className="h-5 w-5" />
-            </Button>
-          </Link>
-          <Link href="/#features">
-            <Button size="lg" variant="outline">
-              Learn More
-            </Button>
-          </Link>
+          {!user ? (
+            <>
+              <Link href="/auth/signup">
+                <Button size="lg" className="gap-2">
+                  Start Now <ArrowRight className="h-5 w-5" />
+                </Button>
+              </Link>
+              <Link href="/#features">
+                <Button size="lg" variant="outline">
+                  Learn More
+                </Button>
+              </Link>
+            </>
+          ) : (
+            <>
+              <Link href="/profile">
+                <Button size="lg" className="gap-2">
+                  Dashboard <ArrowRight className="h-5 w-5" />
+                </Button>
+              </Link>
+            </>
+          )}
         </div>
       </section>
 
@@ -95,11 +126,17 @@ export default function LandingPage() {
           <p className="mt-4 text-lg text-blue-100">
             Join thousands of businesses using our POS system.
           </p>
-          <Link href="/auth" className="mt-8 inline-block">
-            <Button size="lg" variant="secondary" className="gap-2">
-              Get Started Today <ArrowRight className="h-5 w-5" />
-            </Button>
-          </Link>
+          {!user && (
+            <Link href="/auth/signup" className="mt-8 inline-block">
+              <Button
+                size="lg"
+                variant="secondary"
+                className="gap-2"
+              >
+                Get Started Today <ArrowRight className="h-5 w-5" />
+              </Button>
+            </Link>
+          )}
         </div>
       </section>
 
