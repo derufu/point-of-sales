@@ -8,13 +8,15 @@ import { Card } from '@/components/ui/card';
 import { login } from '@/app/actions/auth';
 import { Coffee, Loader2 } from 'lucide-react';
 import Link from 'next/link';
-
+import { createClient } from '@/lib/supabase/client';
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const supabase = createClient();
 
+  console.log('Supabase Client:', supabase);
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -39,7 +41,7 @@ export default function LoginPage() {
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-2 mb-4">
             <Coffee className="w-10 h-10 text-amber-700 dark:text-amber-400" />
-            <span className="text-3xl font-bold text-slate-900 dark:text-white">BrewPOS</span>
+            <span className="text-3xl font-bold text-slate-900 dark:text-white">CaféPOS</span>
           </div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Welcome Back</h1>
           <p className="text-slate-600 dark:text-slate-400 mt-2">

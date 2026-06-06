@@ -11,18 +11,12 @@ import Link from 'next/link';
 
 export default function DashboardPage() {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const getUser = async () => {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        window.location.href = '/auth/login';
-      } else {
-        setUser(user);
-      }
-      setLoading(false);
+      setUser(user);
     };
     getUser();
   }, []);
@@ -30,17 +24,6 @@ export default function DashboardPage() {
   const handleLogout = async () => {
     await logout();
   };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-50 dark:from-slate-950 dark:to-slate-900 flex items-center justify-center">
-        <div className="text-center">
-          <Coffee className="w-12 h-12 text-amber-600 mx-auto animate-bounce mb-4" />
-          <p className="text-slate-600 dark:text-slate-400">Loading...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-50 dark:from-slate-950 dark:to-slate-900">

@@ -45,7 +45,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Coffee className="w-8 h-8 text-amber-700 dark:text-amber-400" />
-            <span className="text-2xl font-bold text-slate-900 dark:text-white">BrewPOS</span>
+            <span className="text-2xl font-bold text-slate-900 dark:text-white">CaféPOS</span>
           </div>
           <div className="hidden md:flex gap-8">
             <a href="#features" className="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition">
@@ -121,7 +121,7 @@ export default function LandingPage() {
               </h1>
 
               <p className="text-xl text-slate-600 dark:text-slate-400 max-w-md">
-                BrewPOS is the modern point-of-sale system built for independent coffee shops. Fast, intuitive, and designed to keep you focused on what matters—great coffee.
+                CaféPOS is the modern point-of-sale system built for independent coffee shops. Fast, intuitive, and designed to keep you focused on what matters—great coffee.
               </p>
             </div>
 
@@ -243,12 +243,12 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Why BrewPOS Section */}
+      {/* Why CaféPOS Section */}
       <section className="py-20 bg-gradient-to-r from-amber-600 to-orange-600 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
             <div className="space-y-6">
-              <h2 className="text-4xl font-bold">Why Coffee Shop Owners Choose BrewPOS</h2>
+              <h2 className="text-4xl font-bold">Why Coffee Shop Owners Choose CaféPOS</h2>
               <p className="text-lg text-amber-50">
                 Built by coffee shop owners who understand the unique challenges of running an independent cafe.
               </p>
@@ -375,7 +375,7 @@ export default function LandingPage() {
             Ready to Level Up Your Coffee Shop?
           </h2>
           <p className="text-xl text-slate-400">
-            Join 500+ independent coffee shops already using BrewPOS
+            Join 500+ independent coffee shops already using CaféPOS
           </p>
           <Link href={user ? '/dashboard' : '/auth/signup'}>
             <Button size="lg" className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-base">
@@ -448,8 +448,8 @@ export default function LandingPage() {
               <h4 className="text-white font-semibold mb-4">Contact</h4>
               <ul className="space-y-2 text-sm">
                 <li>
-                  <a href="mailto:support@brewpos.com" className="hover:text-white transition">
-                    support@brewpos.com
+                  <a href="mailto:support@CaféPOS.com" className="hover:text-white transition">
+                    support@CaféPOS.com
                   </a>
                 </li>
                 <li>
@@ -466,9 +466,9 @@ export default function LandingPage() {
           <div className="flex flex-col md:flex-row justify-between items-center text-sm">
             <div className="flex items-center gap-2 mb-4 md:mb-0">
               <Coffee className="w-5 h-5 text-amber-600" />
-              <span className="text-white font-semibold">BrewPOS</span>
+              <span className="text-white font-semibold">CaféPOS</span>
             </div>
-            <p>© 2026 BrewPOS. All rights reserved.</p>
+            <p>© 2026 CaféPOS. All rights reserved.</p>
           </div>
         </div>
       </footer>

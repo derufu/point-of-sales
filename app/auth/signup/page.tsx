@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,6 +11,7 @@ import { Coffee, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 
 export default function SignupPage() {
+  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [storeName, setStoreName] = useState('');
@@ -31,6 +33,8 @@ export default function SignupPage() {
       const result = await signup(email, password, storeName);
       if (result?.error) {
         setError(result.error);
+      } else {
+        router.push(`/auth/verify-email?email=${encodeURIComponent(email)}`);
       }
     } catch {
       setError('An unexpected error occurred');
@@ -46,7 +50,7 @@ export default function SignupPage() {
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-2 mb-4">
             <Coffee className="w-10 h-10 text-amber-700 dark:text-amber-400" />
-            <span className="text-3xl font-bold text-slate-900 dark:text-white">BrewPOS</span>
+            <span className="text-3xl font-bold text-slate-900 dark:text-white">CaféPOS</span>
           </div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Get Started</h1>
           <p className="text-slate-600 dark:text-slate-400 mt-2">
@@ -146,7 +150,7 @@ export default function SignupPage() {
         {/* Info */}
         <div className="mt-8 p-4 rounded-lg bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800">
           <p className="text-sm text-blue-800 dark:text-blue-200">
-            <strong>Note:</strong> Confirm your email after signup to start using BrewPOS.
+            <strong>Note:</strong> Confirm your email after signup to start using CaféPOS.
           </p>
         </div>
       </div>
