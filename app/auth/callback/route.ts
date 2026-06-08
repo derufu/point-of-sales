@@ -1,53 +1,62 @@
-import http from 'node:http';
-import next from 'next';
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
 
-const dev = process.env.NODE_ENV !== 'production';
-const hostname = 'localhost';
-const port = Number(process.env.PORT) || 3000;
+export async function GET(request: NextRequest) {
+  const url = new URL(request.url);
+  const code = url.searchParams.get('code');
+  const error = url.searchParams.get('error');
 
-const app = next({ dev, hostname, port });
-const handle = app.getRequestHandler();
+  // If Supabase returned an error (expired link, etc.)
+  if (error) {
+    return NextResponse.redirect(
+      new URL(`/auth/error?message=${error}`, request.url)
+    );
+  }
 
-app.prepare().then(() => {
-  const server = http.createServer(async (req, res) => {
-    try {
-      // Basic safety headers (light hardening)
-      res.setHeader('X-Content-Type-Options', 'nosniff');
-      res.setHeader('X-Frame-Options', 'DENY');
-      res.setHeader('X-XSS-Protection', '1; mode=block');
+  // No code = invalid callback
+  if (!code) {
+    return NextResponse.redirect(
+      new URL('/auth/error?message=missing_code', request.url)
+    );
+  }
 
-      await handle(req, res);
-    } catch (err) {
-      console.error('Server request error:', err);
+  try {
+    const supabase = await createClient();
 
-      if (!res.headersSent) {
-        res.statusCode = 500;
-        res.end('Internal Server Error');
-      }
-    }
-  });
+    const { error: exchangeError } =
+      await supabase.auth.exchangeCodeForSession(code);
 
-  /**
-   * Handles low-level socket/client errors
-   * Fixes TypeScript issue: Error has no "code" property
-   */
-  server.on('clientError', (err: NodeJS.ErrnoException, socket) => {
-    const code = err.code;
-
-    // Ignore harmless disconnects
-    if (code === 'ECONNRESET' || code === 'EPIPE') {
-      return;
+    // Failed to exchange code
+    if (exchangeError) {
+      return NextResponse.redirect(
+        new URL(
+          `/auth/error?message=${encodeURIComponent(exchangeError.message)}`,
+          request.url
+        )
+      );
     }
 
-    // Avoid writing to dead sockets
-    if (!socket.writable) {
-      return;
+    // Get user after login
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.redirect(
+        new URL('/auth/error?message=no_user', request.url)
+      );
     }
 
-    socket.end('HTTP/1.1 400 Bad Request\r\n\r\n');
-  });
+    // Success → redirect to dashboard
+    return NextResponse.redirect(
+      new URL('/dashboard', request.url)
+    );
+  } catch (err) {
+    // Safe fallback (no TS error issues)
+    console.error('Callback error:', err);
 
-  server.listen(port, () => {
-    console.log(`> Server running on http://${hostname}:${port}`);
-  });
-});
+    return NextResponse.redirect(
+      new URL('/auth/error?message=unexpected_error', request.url)
+    );
+  }
+}
