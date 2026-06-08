@@ -1,14 +1,11 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { User } from '@supabase/supabase-js';
-import { createClient } from '@/lib/supabase/client';
-import { logout } from '@/app/actions/auth';
+import { AppNav } from '@/components/app-nav';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import {
   Coffee,
-  LogOut,
   BarChart3,
   ShoppingCart,
   Bell,
@@ -177,18 +174,11 @@ function OrderRow({ order }: { order: Order }) {
 // ─── Main Dashboard ───────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
-  const [user, setUser] = useState<User | null>(null);
   const [orderFilter, setOrderFilter] = useState<'all' | OrderStatus>('all');
   const [showYesterday, setShowYesterday] = useState(false);
   const [now, setNow] = useState(new Date());
 
   useEffect(() => {
-    const getUser = async () => {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
-    };
-    getUser();
     const tick = setInterval(() => setNow(new Date()), 60_000);
     return () => clearInterval(tick);
   }, []);
@@ -275,68 +265,20 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 font-sans">
-      {/* ── Header ── */}
-      <header className="sticky top-0 z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
-          {/* Logo */}
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 bg-amber-800 rounded-lg flex items-center justify-center">
-              <Coffee className="w-4 h-4 text-white" />
-            </div>
-            <span className="text-lg font-semibold text-slate-900 dark:text-white">BrewPOS</span>
-            <span className="ml-1 text-[11px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400 font-medium">
-              ● Live
-            </span>
-          </div>
-
-          {/* Nav */}
-          <nav className="hidden md:flex items-center gap-1">
-            {[
-              { href: '/dashboard', label: 'Dashboard', active: true },
-              { href: '/pos', label: 'POS' },
-              { href: '/menu', label: 'Menu' },
-              { href: '/reports', label: 'Reports' },
-            ].map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  item.active
-                    ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white'
-                    : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
-                }`}
-              >
-                {item.label}
-              </Link>
-            ))}
-          </nav>
-
-          {/* Right */}
-          <div className="flex items-center gap-3">
+      <AppNav
+        right={
+          <>
             <span className="hidden sm:flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-lg">
               <Clock className="w-3.5 h-3.5" />
               {dateString} · {timeString}
             </span>
             <button className="relative text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-              <Bell className="w-4.5 h-4.5 w-[18px] h-[18px]" />
+              <Bell className="w-[18px] h-[18px]" />
               <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-red-500 rounded-full" />
             </button>
-            <Link href="/profile">
-              <div className="w-7 h-7 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center text-[11px] font-semibold text-blue-700 dark:text-blue-400 cursor-pointer">
-                {user?.email?.slice(0, 2).toUpperCase() ?? 'ME'}
-              </div>
-            </Link>
-            <Button
-              onClick={logout}
-              variant="ghost"
-              size="sm"
-              className="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
-            >
-              <LogOut className="w-4 h-4" />
-            </Button>
-          </div>
-        </div>
-      </header>
+          </>
+        }
+      />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-5">
         {/* ── Metric Cards ── */}

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import Link from 'next/link';
+import { AppNav } from '@/components/app-nav';
 import { Button } from '@/components/ui/button';
 import {
   Coffee,
@@ -482,44 +482,11 @@ export default function POSPage() {
 
   return (
     <div className="h-screen flex flex-col bg-slate-50 dark:bg-slate-950 overflow-hidden">
-      {/* ── Header ── */}
-      <header className="flex-shrink-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 z-10">
-        <div className="max-w-full px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
-          {/* Logo */}
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <div className="w-7 h-7 bg-amber-800 rounded-lg flex items-center justify-center">
-              <Coffee className="w-4 h-4 text-white" />
-            </div>
-            <span className="text-lg font-semibold text-slate-900 dark:text-white">BrewPOS</span>
-            <span className="ml-1 text-[11px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400 font-medium">
-              ● Live
-            </span>
-          </div>
-
-          {/* Nav */}
-          <nav className="hidden md:flex items-center gap-1">
-            {[
-              { href: '/dashboard', label: 'Dashboard' },
-              { href: '/pos', label: 'POS', active: true },
-              { href: '/menu', label: 'Menu' },
-              { href: '/reports', label: 'Reports' },
-            ].map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  item.active
-                    ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white'
-                    : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
-                }`}
-              >
-                {item.label}
-              </Link>
-            ))}
-          </nav>
-
-          {/* Right */}
-          <div className="flex items-center gap-2 flex-shrink-0">
+      <AppNav
+        sticky={false}
+        containerClassName="max-w-full"
+        right={
+          <>
             <span className="text-sm text-slate-400 dark:text-slate-500 hidden sm:block">
               Order{' '}
               <span className="font-semibold text-slate-700 dark:text-slate-300">
@@ -535,9 +502,9 @@ export default function POSPage() {
                 Clear order
               </button>
             )}
-          </div>
-        </div>
-      </header>
+          </>
+        }
+      />
 
       {/* ── Body ── */}
       <div className="flex flex-1 overflow-hidden">

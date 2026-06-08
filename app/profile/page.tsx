@@ -3,14 +3,14 @@
 import { useEffect, useState } from 'react';
 import { User } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
+import { AppNav } from '@/components/app-nav';
 import { getProfile, updateProfile } from '@/lib/services/profile';
 import { logout } from '@/app/actions/auth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardDescription, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Coffee, LogOut, ArrowLeft, Loader2 } from 'lucide-react';
-import Link from 'next/link';
+import { Coffee, Loader2 } from 'lucide-react';
 
 interface ProfileData {
   store_name: string;
@@ -111,30 +111,8 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-50 dark:from-slate-950 dark:to-slate-900">
-      {/* Header */}
-      <div className="sticky top-0 z-50 backdrop-blur-md bg-white/80 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-800 px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Link href="/dashboard">
-            <Button variant="ghost" size="sm" className="p-0 h-auto">
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-          </Link>
-          <h1 className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            <Coffee className="w-5 h-5 text-amber-600" />
-            BrewPOS
-          </h1>
-        </div>
-        <Button
-          onClick={handleLogout}
-          variant="outline"
-          size="sm"
-          className="rounded-lg border-slate-200 dark:border-slate-700"
-        >
-          <LogOut className="w-4 h-4 mr-2" />
-          Logout
-        </Button>
-      </div>
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
+      <AppNav />
 
       <main className="max-w-4xl mx-auto p-6">
         <div className="space-y-6">

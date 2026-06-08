@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import Link from 'next/link';
+import { AppNav } from '@/components/app-nav';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import {
@@ -471,52 +471,17 @@ export default function MenuPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
-      {/* ── Header ── */}
-      <header className="sticky top-0 z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
-          {/* Logo */}
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <div className="w-7 h-7 bg-amber-800 rounded-lg flex items-center justify-center">
-              <Coffee className="w-4 h-4 text-white" />
-            </div>
-            <span className="text-lg font-semibold text-slate-900 dark:text-white">BrewPOS</span>
-            <span className="ml-1 text-[11px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400 font-medium">
-              ● Live
-            </span>
-          </div>
-
-          {/* Nav */}
-          <nav className="hidden md:flex items-center gap-1">
-            {[
-              { href: '/dashboard', label: 'Dashboard' },
-              { href: '/pos', label: 'POS' },
-              { href: '/menu', label: 'Menu', active: true },
-              { href: '/reports', label: 'Reports' },
-            ].map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  item.active
-                    ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white'
-                    : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
-                }`}
-              >
-                {item.label}
-              </Link>
-            ))}
-          </nav>
-
-          {/* Right */}
+      <AppNav
+        right={
           <Button
             onClick={() => setShowAdd(true)}
             className="bg-amber-700 hover:bg-amber-800 text-white rounded-xl text-sm flex items-center gap-1.5"
           >
             <Plus className="w-4 h-4" />
-            Add item
+            <span className="hidden sm:inline">Add item</span>
           </Button>
-        </div>
-      </header>
+        }
+      />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-5">
         {/* ── Stats ── */}
