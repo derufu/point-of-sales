@@ -1,42 +1,53 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import http from 'node:http';
+import next from 'next';
 
-export async function GET(request: NextRequest) {
-  const { searchParams, origin } = new URL(request.url);
+const dev = process.env.NODE_ENV !== 'production';
+const hostname = 'localhost';
+const port = Number(process.env.PORT) || 3000;
 
-  const code = searchParams.get('code');
-  const error = searchParams.get('error');
-  const errorCode = searchParams.get('error_code');
-  const errorDescription = searchParams.get('error_description');
+const app = next({ dev, hostname, port });
+const handle = app.getRequestHandler();
 
-  // Handle error from Supabase (e.g. expired OTP)
-  if (error) {
-    const params = new URLSearchParams({
-      error,
-      error_code: errorCode ?? '',
-      error_description: errorDescription ?? '',
-    });
-    return NextResponse.redirect(`${origin}/auth/error?${params.toString()}`);
-  }
+app.prepare().then(() => {
+  const server = http.createServer(async (req, res) => {
+    try {
+      // Basic safety headers (light hardening)
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('X-Frame-Options', 'DENY');
+      res.setHeader('X-XSS-Protection', '1; mode=block');
 
-  // Exchange code for session
-  if (code) {
-    const supabase = createClient();
-    const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+      await handle(req, res);
+    } catch (err) {
+      console.error('Server request error:', err);
 
-    if (exchangeError) {
-      const params = new URLSearchParams({
-        error: 'exchange_failed',
-        error_code: exchangeError.status?.toString() ?? '',
-        error_description: exchangeError.message,
-      });
-      return NextResponse.redirect(`${origin}/auth/error?${params.toString()}`);
+      if (!res.headersSent) {
+        res.statusCode = 500;
+        res.end('Internal Server Error');
+      }
+    }
+  });
+
+  /**
+   * Handles low-level socket/client errors
+   * Fixes TypeScript issue: Error has no "code" property
+   */
+  server.on('clientError', (err: NodeJS.ErrnoException, socket) => {
+    const code = err.code;
+
+    // Ignore harmless disconnects
+    if (code === 'ECONNRESET' || code === 'EPIPE') {
+      return;
     }
 
-    // Success — send to dashboard
-    return NextResponse.redirect(`${origin}/dashboard`);
-  }
+    // Avoid writing to dead sockets
+    if (!socket.writable) {
+      return;
+    }
 
-  // No code or error — redirect home
-  return NextResponse.redirect(`${origin}/`);
-}
+    socket.end('HTTP/1.1 400 Bad Request\r\n\r\n');
+  });
+
+  server.listen(port, () => {
+    console.log(`> Server running on http://${hostname}:${port}`);
+  });
+});
