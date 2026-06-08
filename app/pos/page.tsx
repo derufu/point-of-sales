@@ -1,347 +1,708 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { User } from '@supabase/supabase-js';
-import { createClient } from '@/lib/supabase/client';
-import { Card } from '@/components/ui/card';
+import { useState, useMemo } from 'react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
 import {
-  ShoppingCart,
+  Coffee,
+  ArrowLeft,
+  Search,
   Plus,
   Minus,
   Trash2,
-  Coffee,
-  Clock,
-  DollarSign,
-  CheckCircle,
-  AlertCircle,
-  LogOut,
-  ArrowLeft,
+  ChevronRight,
+  X,
+  CreditCard,
+  Smartphone,
+  Banknote,
+  Check,
+  User,
+  Tag,
+  Receipt,
+  RotateCcw,
+  ShoppingCart,
 } from 'lucide-react';
-import { logout } from '@/app/actions/auth';
-import Link from 'next/link';
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type Category = 'All' | 'Hot Coffee' | 'Iced Coffee' | 'Non-Coffee' | 'Pastries' | 'Sandwiches';
+type PaymentMethod = 'cash' | 'gcash' | 'card';
+type Size = 'S' | 'M' | 'L';
 
 interface MenuItem {
   id: string;
   name: string;
+  category: Exclude<Category, 'All'>;
+  basePrice: number;
+  emoji: string;
+  description: string;
+  hasSizes: boolean;
+}
+
+interface CartItem {
+  id: string;
+  menuItemId: string;
+  name: string;
+  size?: Size;
   price: number;
-  category: string;
-  icon: React.ReactNode;
+  qty: number;
+  note?: string;
 }
 
-interface CartItem extends MenuItem {
-  quantity: number;
-}
+// ─── Data ─────────────────────────────────────────────────────────────────────
 
-const menuItems: MenuItem[] = [
-  { id: '1', name: 'Espresso', price: 3.5, category: 'Coffee', icon: <Coffee className="w-4 h-4" /> },
-  { id: '2', name: 'Americano', price: 4.0, category: 'Coffee', icon: <Coffee className="w-4 h-4" /> },
-  { id: '3', name: 'Cappuccino', price: 5.0, category: 'Coffee', icon: <Coffee className="w-4 h-4" /> },
-  { id: '4', name: 'Latte', price: 5.5, category: 'Coffee', icon: <Coffee className="w-4 h-4" /> },
-  { id: '5', name: 'Macchiato', price: 4.5, category: 'Coffee', icon: <Coffee className="w-4 h-4" /> },
-  { id: '6', name: 'Mocha', price: 6.0, category: 'Coffee', icon: <Coffee className="w-4 h-4" /> },
-  { id: '7', name: 'Flat White', price: 5.0, category: 'Coffee', icon: <Coffee className="w-4 h-4" /> },
-  { id: '8', name: 'Cold Brew', price: 4.5, category: 'Coffee', icon: <Coffee className="w-4 h-4" /> },
-  { id: '9', name: 'Iced Latte', price: 5.5, category: 'Iced', icon: <Coffee className="w-4 h-4" /> },
-  { id: '10', name: 'Iced Cappuccino', price: 5.5, category: 'Iced', icon: <Coffee className="w-4 h-4" /> },
+const MENU_ITEMS: MenuItem[] = [
+  { id: 'm1', name: 'Latte', category: 'Hot Coffee', basePrice: 120, emoji: '☕', description: 'Espresso with steamed milk', hasSizes: true },
+  { id: 'm2', name: 'Cappuccino', category: 'Hot Coffee', basePrice: 115, emoji: '☕', description: 'Bold espresso with foam', hasSizes: true },
+  { id: 'm3', name: 'Americano', category: 'Hot Coffee', basePrice: 90, emoji: '☕', description: 'Espresso with hot water', hasSizes: true },
+  { id: 'm4', name: 'Flat White', category: 'Hot Coffee', basePrice: 130, emoji: '☕', description: 'Double ristretto with milk', hasSizes: false },
+  { id: 'm5', name: 'Espresso', category: 'Hot Coffee', basePrice: 80, emoji: '☕', description: 'Single or double shot', hasSizes: false },
+  { id: 'm6', name: 'Cold Brew', category: 'Iced Coffee', basePrice: 150, emoji: '🧊', description: '18-hour steeped cold brew', hasSizes: true },
+  { id: 'm7', name: 'Iced Latte', category: 'Iced Coffee', basePrice: 130, emoji: '🧊', description: 'Espresso over ice with milk', hasSizes: true },
+  { id: 'm8', name: 'Frappuccino', category: 'Iced Coffee', basePrice: 160, emoji: '🥤', description: 'Blended iced coffee drink', hasSizes: true },
+  { id: 'm9', name: 'Iced Americano', category: 'Iced Coffee', basePrice: 100, emoji: '🧊', description: 'Espresso over ice', hasSizes: true },
+  { id: 'm10', name: 'Matcha Latte', category: 'Non-Coffee', basePrice: 130, emoji: '🍵', description: 'Ceremonial grade matcha', hasSizes: true },
+  { id: 'm11', name: 'Chocolate', category: 'Non-Coffee', basePrice: 110, emoji: '🍫', description: 'Rich hot chocolate', hasSizes: true },
+  { id: 'm12', name: 'Chai Latte', category: 'Non-Coffee', basePrice: 125, emoji: '🫖', description: 'Spiced milk tea', hasSizes: true },
+  { id: 'm13', name: 'Croissant', category: 'Pastries', basePrice: 75, emoji: '🥐', description: 'Buttery flaky croissant', hasSizes: false },
+  { id: 'm14', name: 'Blueberry Muffin', category: 'Pastries', basePrice: 85, emoji: '🧁', description: 'Fresh baked daily', hasSizes: false },
+  { id: 'm15', name: 'Cinnamon Roll', category: 'Pastries', basePrice: 95, emoji: '🌀', description: 'Glazed cinnamon roll', hasSizes: false },
+  { id: 'm16', name: 'Club Sandwich', category: 'Sandwiches', basePrice: 165, emoji: '🥪', description: 'Triple decker classic', hasSizes: false },
+  { id: 'm17', name: 'BLT', category: 'Sandwiches', basePrice: 145, emoji: '🥪', description: 'Bacon lettuce tomato', hasSizes: false },
+  { id: 'm18', name: 'Tuna Melt', category: 'Sandwiches', basePrice: 155, emoji: '🥪', description: 'Toasted with melted cheese', hasSizes: false },
 ];
 
-export default function POSPage() {
-  const [user, setUser] = useState<User | null>(null);
-  const [cart, setCart] = useState<CartItem[]>([]);
-  const [lastOrder, setLastOrder] = useState<{ total: number; items: number; time: string } | null>(
-    null
+const CATEGORIES: Category[] = ['All', 'Hot Coffee', 'Iced Coffee', 'Non-Coffee', 'Pastries', 'Sandwiches'];
+
+const SIZE_ADDERS: Record<Size, number> = { S: 0, M: 20, L: 40 };
+
+const DISCOUNTS = [
+  { label: 'PWD / Senior (20%)', value: 0.20 },
+  { label: 'Student (10%)', value: 0.10 },
+  { label: 'Staff (15%)', value: 0.15 },
+];
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+let cartCounter = 1;
+function uid() { return `c${cartCounter++}`; }
+
+function formatPrice(n: number) {
+  return '₱' + n.toLocaleString('en-PH', { minimumFractionDigits: 0 });
+}
+
+// ─── Item Modal ───────────────────────────────────────────────────────────────
+
+function ItemModal({
+  item,
+  onClose,
+  onAdd,
+}: {
+  item: MenuItem;
+  onClose: () => void;
+  onAdd: (cartItem: CartItem) => void;
+}) {
+  const [size, setSize] = useState<Size>('M');
+  const [qty, setQty] = useState(1);
+  const [note, setNote] = useState('');
+
+  const price = item.basePrice + (item.hasSizes ? SIZE_ADDERS[size] : 0);
+
+  const handleAdd = () => {
+    onAdd({
+      id: uid(),
+      menuItemId: item.id,
+      name: item.name,
+      size: item.hasSizes ? size : undefined,
+      price,
+      qty,
+      note: note.trim() || undefined,
+    });
+    onClose();
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div className="w-full sm:max-w-sm bg-white dark:bg-slate-900 rounded-t-2xl sm:rounded-2xl p-6 shadow-2xl">
+        <div className="flex items-start justify-between mb-4">
+          <div>
+            <div className="text-3xl mb-1">{item.emoji}</div>
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{item.name}</h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400">{item.description}</p>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {item.hasSizes && (
+          <div className="mb-4">
+            <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2">Size</p>
+            <div className="grid grid-cols-3 gap-2">
+              {(['S', 'M', 'L'] as Size[]).map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setSize(s)}
+                  className={`py-2 rounded-xl border text-sm font-medium transition-colors ${
+                    size === s
+                      ? 'bg-amber-700 border-amber-700 text-white'
+                      : 'border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-amber-300'
+                  }`}
+                >
+                  {s}
+                  <span className="block text-[10px] font-normal opacity-70">
+                    {s === 'S' ? 'no add' : `+₱${SIZE_ADDERS[s]}`}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="mb-4">
+          <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2">Note</p>
+          <input
+            type="text"
+            placeholder="e.g. less sugar, oat milk…"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500"
+          />
+        </div>
+
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setQty((q) => Math.max(1, q - 1))}
+              className="w-8 h-8 rounded-lg border border-slate-200 dark:border-slate-700 flex items-center justify-center hover:bg-slate-50 dark:hover:bg-slate-800"
+            >
+              <Minus className="w-3 h-3" />
+            </button>
+            <span className="text-lg font-semibold w-5 text-center text-slate-900 dark:text-white">{qty}</span>
+            <button
+              onClick={() => setQty((q) => q + 1)}
+              className="w-8 h-8 rounded-lg border border-slate-200 dark:border-slate-700 flex items-center justify-center hover:bg-slate-50 dark:hover:bg-slate-800"
+            >
+              <Plus className="w-3 h-3" />
+            </button>
+          </div>
+          <span className="text-xl font-bold text-slate-900 dark:text-white">
+            {formatPrice(price * qty)}
+          </span>
+        </div>
+
+        <Button
+          onClick={handleAdd}
+          className="w-full bg-amber-700 hover:bg-amber-800 text-white rounded-xl py-3 font-semibold"
+        >
+          Add to order
+        </Button>
+      </div>
+    </div>
   );
-  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card'>('cash');
-  const [loading, setLoading] = useState(true);
+}
 
-  useEffect(() => {
-    const getUser = async () => {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        window.location.href = '/auth/login';
-      } else {
-        setUser(user);
-      }
-      setLoading(false);
-    };
-    getUser();
-  }, []);
+// ─── Payment Modal ────────────────────────────────────────────────────────────
 
-  const addToCart = (item: MenuItem) => {
-    setCart((prevCart) => {
-      const existingItem = prevCart.find((cartItem) => cartItem.id === item.id);
-      if (existingItem) {
-        return prevCart.map((cartItem) =>
-          cartItem.id === item.id
-            ? { ...cartItem, quantity: cartItem.quantity + 1 }
-            : cartItem
-        );
-      }
-      return [...prevCart, { ...item, quantity: 1 }];
-    });
+function PaymentModal({
+  total,
+  onClose,
+  onComplete,
+}: {
+  total: number;
+  onClose: () => void;
+  onComplete: () => void;
+}) {
+  const [method, setMethod] = useState<PaymentMethod>('cash');
+  const [cashInput, setCashInput] = useState('');
+  const [discount, setDiscount] = useState(0);
+  const [customerName, setCustomerName] = useState('');
+  const [done, setDone] = useState(false);
+
+  const discounted = Math.round(total * (1 - discount));
+  const cashGiven = parseFloat(cashInput) || 0;
+  const change = Math.max(0, cashGiven - discounted);
+
+  const canPay =
+    method !== 'cash' || cashGiven >= discounted;
+
+  const handlePay = () => {
+    if (!canPay) return;
+    setDone(true);
+    setTimeout(() => {
+      onComplete();
+    }, 2000);
   };
 
-  const removeFromCart = (itemId: string) => {
-    setCart((prevCart) => prevCart.filter((item) => item.id !== itemId));
-  };
-
-  const updateQuantity = (itemId: string, quantity: number) => {
-    if (quantity <= 0) {
-      removeFromCart(itemId);
-    } else {
-      setCart((prevCart) =>
-        prevCart.map((item) => (item.id === itemId ? { ...item, quantity } : item))
-      );
-    }
-  };
-
-  const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const tax = subtotal * 0.1;
-  const total = subtotal + tax;
-
-  const handleCheckout = () => {
-    if (cart.length === 0) return;
-
-    const now = new Date();
-    const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-    setLastOrder({
-      total,
-      items: cart.reduce((sum, item) => sum + item.quantity, 0),
-      time: timeStr,
-    });
-
-    setCart([]);
-  };
-
-  const handleLogout = async () => {
-    await logout();
-  };
-
-  if (loading) {
+  if (done) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-50 dark:from-slate-950 dark:to-slate-900 flex items-center justify-center">
-        <Coffee className="w-12 h-12 text-amber-600 animate-bounce" />
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl p-10 text-center shadow-2xl max-w-xs w-full">
+          <div className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center mx-auto mb-4">
+            <Check className="w-8 h-8 text-emerald-600 dark:text-emerald-400" />
+          </div>
+          <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-1">Payment received</h3>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mb-2">
+            {formatPrice(discounted)} via {method === 'cash' ? 'Cash' : method === 'gcash' ? 'GCash' : 'Card'}
+          </p>
+          {method === 'cash' && change > 0 && (
+            <p className="text-base font-semibold text-emerald-600 dark:text-emerald-400">
+              Change: {formatPrice(change)}
+            </p>
+          )}
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="h-screen bg-gradient-to-br from-amber-50 to-orange-50 dark:from-slate-950 dark:to-slate-900">
-      {/* Header */}
-      <div className="sticky top-0 z-50 backdrop-blur-md bg-white/80 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-800 px-4 py-3 flex items-center justify-between">
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div className="w-full sm:max-w-md bg-white dark:bg-slate-900 rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden">
+        <div className="px-6 pt-6 pb-4 border-b border-slate-100 dark:border-slate-800">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Payment</h3>
+            <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        <div className="px-6 py-4 space-y-5">
+          {/* Customer name */}
+          <div>
+            <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2">
+              Customer name (optional)
+            </p>
+            <div className="relative">
+              <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                type="text"
+                placeholder="For the cup label…"
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500"
+              />
+            </div>
+          </div>
+
+          {/* Discount */}
+          <div>
+            <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+              <Tag className="w-3 h-3" /> Discount
+            </p>
+            <div className="flex gap-2 flex-wrap">
+              <button
+                onClick={() => setDiscount(0)}
+                className={`text-[12px] px-3 py-1.5 rounded-lg border transition-colors ${
+                  discount === 0
+                    ? 'bg-slate-900 dark:bg-white border-slate-900 dark:border-white text-white dark:text-slate-900 font-medium'
+                    : 'border-slate-200 dark:border-slate-700 text-slate-500 hover:border-slate-400'
+                }`}
+              >
+                None
+              </button>
+              {DISCOUNTS.map((d) => (
+                <button
+                  key={d.label}
+                  onClick={() => setDiscount(d.value)}
+                  className={`text-[12px] px-3 py-1.5 rounded-lg border transition-colors ${
+                    discount === d.value
+                      ? 'bg-amber-700 border-amber-700 text-white font-medium'
+                      : 'border-slate-200 dark:border-slate-700 text-slate-500 hover:border-amber-300'
+                  }`}
+                >
+                  {d.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Payment method */}
+          <div>
+            <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2">Payment method</p>
+            <div className="grid grid-cols-3 gap-2">
+              {([
+                { key: 'cash', label: 'Cash', icon: <Banknote className="w-4 h-4" /> },
+                { key: 'gcash', label: 'GCash', icon: <Smartphone className="w-4 h-4" /> },
+                { key: 'card', label: 'Card', icon: <CreditCard className="w-4 h-4" /> },
+              ] as { key: PaymentMethod; label: string; icon: React.ReactNode }[]).map((m) => (
+                <button
+                  key={m.key}
+                  onClick={() => setMethod(m.key)}
+                  className={`flex flex-col items-center gap-1.5 py-3 rounded-xl border text-sm font-medium transition-colors ${
+                    method === m.key
+                      ? 'bg-amber-700 border-amber-700 text-white'
+                      : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-amber-300'
+                  }`}
+                >
+                  {m.icon}
+                  {m.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Cash tendered */}
+          {method === 'cash' && (
+            <div>
+              <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2">Cash tendered</p>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400 font-medium">₱</span>
+                <input
+                  type="number"
+                  placeholder={String(discounted)}
+                  value={cashInput}
+                  onChange={(e) => setCashInput(e.target.value)}
+                  className="w-full pl-8 pr-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                />
+              </div>
+              <div className="flex gap-2 mt-2 flex-wrap">
+                {[200, 500, 1000].map((q) => (
+                  <button
+                    key={q}
+                    onClick={() => setCashInput(String(q))}
+                    className="text-[12px] px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                  >
+                    ₱{q}
+                  </button>
+                ))}
+                <button
+                  onClick={() => setCashInput(String(discounted))}
+                  className="text-[12px] px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                >
+                  Exact
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Summary */}
+          <div className="bg-slate-50 dark:bg-slate-800 rounded-xl p-4 space-y-2">
+            <div className="flex justify-between text-sm text-slate-500 dark:text-slate-400">
+              <span>Subtotal</span>
+              <span>{formatPrice(total)}</span>
+            </div>
+            {discount > 0 && (
+              <div className="flex justify-between text-sm text-emerald-600 dark:text-emerald-400">
+                <span>Discount ({Math.round(discount * 100)}%)</span>
+                <span>-{formatPrice(total - discounted)}</span>
+              </div>
+            )}
+            <div className="flex justify-between text-base font-bold text-slate-900 dark:text-white border-t border-slate-200 dark:border-slate-700 pt-2 mt-1">
+              <span>Total</span>
+              <span>{formatPrice(discounted)}</span>
+            </div>
+            {method === 'cash' && cashGiven > 0 && (
+              <div className="flex justify-between text-sm font-semibold text-emerald-600 dark:text-emerald-400">
+                <span>Change</span>
+                <span>{formatPrice(change)}</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="px-6 pb-6">
+          <Button
+            onClick={handlePay}
+            disabled={!canPay}
+            className="w-full bg-amber-700 hover:bg-amber-800 disabled:opacity-40 text-white rounded-xl py-3 text-base font-semibold"
+          >
+            {method === 'cash' && cashGiven < discounted && cashGiven > 0
+              ? `Short by ${formatPrice(discounted - cashGiven)}`
+              : `Charge ${formatPrice(discounted)}`}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── POS Page ─────────────────────────────────────────────────────────────────
+
+export default function POSPage() {
+  const [category, setCategory] = useState<Category>('All');
+  const [search, setSearch] = useState('');
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
+  const [showPayment, setShowPayment] = useState(false);
+  const [orderNum, setOrderNum] = useState(148);
+
+  const filtered = useMemo(() => {
+    return MENU_ITEMS.filter((item) => {
+      const matchCat = category === 'All' || item.category === category;
+      const matchSearch = item.name.toLowerCase().includes(search.toLowerCase());
+      return matchCat && matchSearch;
+    });
+  }, [category, search]);
+
+  const subtotal = cart.reduce((sum, i) => sum + i.price * i.qty, 0);
+  const itemCount = cart.reduce((sum, i) => sum + i.qty, 0);
+
+  const addToCart = (cartItem: CartItem) => {
+    setCart((prev) => {
+      // merge if same item + size + no note
+      const existing = prev.find(
+        (c) =>
+          c.menuItemId === cartItem.menuItemId &&
+          c.size === cartItem.size &&
+          !cartItem.note &&
+          !c.note
+      );
+      if (existing) {
+        return prev.map((c) =>
+          c.id === existing.id ? { ...c, qty: c.qty + cartItem.qty } : c
+        );
+      }
+      return [...prev, cartItem];
+    });
+  };
+
+  const updateQty = (id: string, delta: number) => {
+    setCart((prev) =>
+      prev
+        .map((c) => (c.id === id ? { ...c, qty: c.qty + delta } : c))
+        .filter((c) => c.qty > 0)
+    );
+  };
+
+  const removeItem = (id: string) => setCart((prev) => prev.filter((c) => c.id !== id));
+
+  const clearCart = () => setCart([]);
+
+  const handlePaymentComplete = () => {
+    setCart([]);
+    setShowPayment(false);
+    setOrderNum((n) => n + 1);
+  };
+
+  return (
+    <div className="h-screen flex flex-col bg-slate-50 dark:bg-slate-950 overflow-hidden">
+      {/* ── Header ── */}
+      <header className="h-14 flex-shrink-0 flex items-center justify-between px-4 sm:px-6 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 z-10">
         <div className="flex items-center gap-3">
           <Link href="/dashboard">
-            <Button variant="ghost" size="sm" className="p-0 h-auto">
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
+            <button className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 transition-colors">
+              <ArrowLeft className="w-4 h-4" />
+            </button>
           </Link>
-          <div>
-            <h1 className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <Coffee className="w-5 h-5 text-amber-600" />
-              BrewPOS
-            </h1>
-            <p className="text-xs text-slate-500 dark:text-slate-400">{user?.email}</p>
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 bg-amber-800 rounded-md flex items-center justify-center">
+              <Coffee className="w-3.5 h-3.5 text-white" />
+            </div>
+            <span className="font-semibold text-slate-900 dark:text-white">BrewPOS</span>
+            <span className="text-slate-300 dark:text-slate-600">·</span>
+            <span className="text-sm text-slate-500 dark:text-slate-400">Order #{orderNum}</span>
           </div>
         </div>
-        <Button
-          onClick={handleLogout}
-          variant="outline"
-          size="sm"
-          className="rounded-lg border-slate-200 dark:border-slate-700"
-        >
-          <LogOut className="w-4 h-4 mr-2" />
-          Logout
-        </Button>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 h-[calc(100vh-69px)] gap-4 p-4 overflow-hidden">
-        {/* Menu Section */}
-        <div className="lg:col-span-2 flex flex-col gap-4 overflow-hidden">
-          <div className="flex items-center gap-2">
-            <h2 className="text-xl font-bold text-slate-900 dark:text-white">Menu</h2>
-          </div>
-
-          {/* Menu Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 overflow-y-auto flex-1 pr-2">
-            {menuItems.map((item) => (
-              <Card
-                key={item.id}
-                className="p-4 cursor-pointer hover:shadow-lg transition-all hover:scale-105 bg-white dark:bg-slate-800 border-0"
-                onClick={() => addToCart(item)}
-              >
-                <div className="flex flex-col items-center text-center gap-2">
-                  <div className="p-3 rounded-lg bg-amber-100 dark:bg-amber-900/30">
-                    {item.icon}
-                  </div>
-                  <h3 className="font-semibold text-sm text-slate-900 dark:text-white">
-                    {item.name}
-                  </h3>
-                  <p className="text-lg font-bold text-amber-600 dark:text-amber-400">
-                    ${item.price.toFixed(2)}
-                  </p>
-                </div>
-              </Card>
-            ))}
-          </div>
+        <div className="flex items-center gap-2">
+          {cart.length > 0 && (
+            <button
+              onClick={clearCart}
+              className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-red-500 transition-colors px-2 py-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"
+            >
+              <RotateCcw className="w-3 h-3" />
+              Clear order
+            </button>
+          )}
         </div>
+      </header>
 
-        {/* Cart & Checkout Section */}
-        <div className="flex flex-col gap-4 overflow-hidden">
-          {/* Cart Header */}
-          <div className="flex items-center gap-2">
-            <ShoppingCart className="w-6 h-6 text-amber-700" />
-            <h2 className="text-xl font-bold text-slate-900 dark:text-white">Order</h2>
-            {cart.length > 0 && (
-              <span className="ml-auto bg-amber-600 text-white text-xs font-bold px-2 py-1 rounded-full">
-                {cart.length}
-              </span>
-            )}
+      {/* ── Body ── */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* ── Left: Menu ── */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Search + Category bar */}
+          <div className="flex-shrink-0 px-4 pt-4 pb-3 space-y-3 bg-slate-50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800">
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search menu…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500"
+              />
+            </div>
+            {/* Categories */}
+            <div className="flex gap-2 overflow-x-auto pb-0.5 scrollbar-hide">
+              {CATEGORIES.map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setCategory(cat)}
+                  className={`flex-shrink-0 text-[12px] font-medium px-3 py-1.5 rounded-full transition-colors ${
+                    category === cat
+                      ? 'bg-amber-700 text-white'
+                      : 'bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:border-amber-300 dark:hover:border-amber-600'
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
           </div>
 
-          {/* Cart Items */}
-          <div className="flex-1 overflow-y-auto border rounded-lg bg-white dark:bg-slate-800 p-4 space-y-3">
-            {cart.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-slate-400 dark:text-slate-500">
-                <ShoppingCart className="w-12 h-12 mb-2 opacity-50" />
-                <p className="text-sm">No items yet</p>
+          {/* Menu grid */}
+          <div className="flex-1 overflow-y-auto p-4">
+            {filtered.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-40 text-slate-400">
+                <Coffee className="w-8 h-8 mb-2 opacity-40" />
+                <p className="text-sm">No items found</p>
               </div>
             ) : (
-              cart.map((item) => (
-                <div key={item.id} className="flex flex-col gap-2 p-3 bg-slate-50 dark:bg-slate-700 rounded-lg">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h4 className="font-semibold text-slate-900 dark:text-white text-sm">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                {filtered.map((item) => {
+                  const inCart = cart.filter((c) => c.menuItemId === item.id);
+                  const totalQty = inCart.reduce((s, c) => s + c.qty, 0);
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => setSelectedItem(item)}
+                      className="relative group flex flex-col items-start p-4 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 hover:border-amber-400 dark:hover:border-amber-600 hover:shadow-md transition-all text-left"
+                    >
+                      {totalQty > 0 && (
+                        <span className="absolute top-2.5 right-2.5 w-5 h-5 rounded-full bg-amber-700 text-white text-[10px] font-bold flex items-center justify-center">
+                          {totalQty}
+                        </span>
+                      )}
+                      <span className="text-2xl mb-2">{item.emoji}</span>
+                      <p className="text-[13px] font-semibold text-slate-900 dark:text-white leading-tight mb-0.5">
                         {item.name}
-                      </h4>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">
-                        ${item.price.toFixed(2)} each
+                      </p>
+                      <p className="text-[11px] text-slate-400 leading-tight mb-2 line-clamp-2">
+                        {item.description}
+                      </p>
+                      <p className="text-sm font-bold text-amber-700 dark:text-amber-500">
+                        {formatPrice(item.basePrice)}
+                        {item.hasSizes && <span className="font-normal text-[10px] text-slate-400"> +</span>}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ── Right: Cart ── */}
+        <div className="w-80 xl:w-96 flex-shrink-0 flex flex-col bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800">
+          {/* Cart header */}
+          <div className="flex-shrink-0 px-5 py-4 border-b border-slate-100 dark:border-slate-800">
+            <div className="flex items-center justify-between">
+              <h2 className="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                <Receipt className="w-4 h-4 text-slate-400" />
+                Current order
+              </h2>
+              {itemCount > 0 && (
+                <span className="text-xs text-slate-400">{itemCount} item{itemCount !== 1 ? 's' : ''}</span>
+              )}
+            </div>
+          </div>
+
+          {/* Cart items */}
+          <div className="flex-1 overflow-y-auto">
+            {cart.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-slate-400 pb-10">
+                <ShoppingCart className="w-10 h-10 mb-3 opacity-30" />
+                <p className="text-sm font-medium">No items yet</p>
+                <p className="text-xs text-slate-300 dark:text-slate-600 mt-1">Tap a menu item to add it</p>
+              </div>
+            ) : (
+              <div className="p-4 space-y-2">
+                {cart.map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800 group"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[13px] font-medium text-slate-900 dark:text-white truncate">
+                        {item.name}
+                        {item.size && (
+                          <span className="ml-1 text-[11px] text-slate-400 font-normal">· {item.size}</span>
+                        )}
+                      </p>
+                      {item.note && (
+                        <p className="text-[11px] text-amber-600 dark:text-amber-400 truncate">{item.note}</p>
+                      )}
+                      <p className="text-[12px] font-semibold text-slate-700 dark:text-slate-300">
+                        {formatPrice(item.price * item.qty)}
                       </p>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeFromCart(item.id)}
-                      className="h-6 w-6 p-0"
-                    >
-                      <Trash2 className="w-4 h-4 text-red-500" />
-                    </Button>
-                  </div>
-
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-1 bg-white dark:bg-slate-600 rounded-lg border">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                        className="h-7 w-7 p-0"
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => updateQty(item.id, -1)}
+                        className="w-6 h-6 rounded-md bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-600 transition-colors"
                       >
-                        <Minus className="w-3 h-3" />
-                      </Button>
-                      <span className="text-sm font-semibold px-2">{item.quantity}</span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                        className="h-7 w-7 p-0"
+                        <Minus className="w-3 h-3 text-slate-500" />
+                      </button>
+                      <span className="text-sm font-semibold w-4 text-center text-slate-900 dark:text-white">
+                        {item.qty}
+                      </span>
+                      <button
+                        onClick={() => updateQty(item.id, 1)}
+                        className="w-6 h-6 rounded-md bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-600 transition-colors"
                       >
-                        <Plus className="w-3 h-3" />
-                      </Button>
+                        <Plus className="w-3 h-3 text-slate-500" />
+                      </button>
+                      <button
+                        onClick={() => removeItem(item.id)}
+                        className="w-6 h-6 rounded-md flex items-center justify-center text-slate-300 hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors opacity-0 group-hover:opacity-100"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
                     </div>
-                    <span className="font-bold text-slate-900 dark:text-white text-sm">
-                      ${(item.price * item.quantity).toFixed(2)}
-                    </span>
                   </div>
-                </div>
-              ))
+                ))}
+              </div>
             )}
           </div>
 
-          {/* Totals */}
-          {cart.length > 0 && (
-            <Card className="p-4 bg-white dark:bg-slate-800 border-0 space-y-3">
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-600 dark:text-slate-400">Subtotal</span>
-                  <span className="font-semibold text-slate-900 dark:text-white">
-                    ${subtotal.toFixed(2)}
-                  </span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-600 dark:text-slate-400">Tax (10%)</span>
-                  <span className="font-semibold text-slate-900 dark:text-white">
-                    ${tax.toFixed(2)}
-                  </span>
-                </div>
+          {/* Cart footer */}
+          <div className="flex-shrink-0 border-t border-slate-100 dark:border-slate-800 p-5 space-y-4">
+            <div className="space-y-1.5">
+              <div className="flex justify-between text-sm text-slate-500 dark:text-slate-400">
+                <span>Subtotal</span>
+                <span>{formatPrice(subtotal)}</span>
               </div>
-
-              <Separator />
-
-              <div className="flex justify-between items-center">
-                <span className="text-lg font-bold text-slate-900 dark:text-white">Total</span>
-                <span className="text-2xl font-bold text-amber-600 dark:text-amber-400">
-                  ${total.toFixed(2)}
-                </span>
+              <div className="flex justify-between text-base font-bold text-slate-900 dark:text-white">
+                <span>Total</span>
+                <span>{formatPrice(subtotal)}</span>
               </div>
+            </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                  Payment Method
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <Button
-                    onClick={() => setPaymentMethod('cash')}
-                    variant={paymentMethod === 'cash' ? 'default' : 'outline'}
-                    className="rounded-lg"
-                  >
-                    <DollarSign className="w-4 h-4 mr-2" />
-                    Cash
-                  </Button>
-                  <Button
-                    onClick={() => setPaymentMethod('card')}
-                    variant={paymentMethod === 'card' ? 'default' : 'outline'}
-                    className="rounded-lg"
-                  >
-                    💳 Card
-                  </Button>
-                </div>
-              </div>
-
-              <Button
-                onClick={handleCheckout}
-                className="w-full bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-lg py-6 text-lg"
-              >
-                <CheckCircle className="w-5 h-5 mr-2" />
-                Complete Order
-              </Button>
-            </Card>
-          )}
-
-          {/* Last Order */}
-          {lastOrder && (
-            <Card className="p-4 bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-900">
-              <div className="flex items-start gap-2">
-                <AlertCircle className="w-5 h-5 text-green-600 mt-0.5" />
-                <div>
-                  <h4 className="font-semibold text-green-900 dark:text-green-200 text-sm">
-                    Order Complete!
-                  </h4>
-                  <p className="text-xs text-green-700 dark:text-green-300 mt-1">
-                    {lastOrder.items} item{lastOrder.items > 1 ? 's' : ''} • ${lastOrder.total.toFixed(2)}
-                  </p>
-                  <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1 mt-1">
-                    <Clock className="w-3 h-3" />
-                    {lastOrder.time}
-                  </p>
-                </div>
-              </div>
-            </Card>
-          )}
+            <Button
+              onClick={() => setShowPayment(true)}
+              disabled={cart.length === 0}
+              className="w-full bg-amber-700 hover:bg-amber-800 disabled:opacity-40 text-white rounded-xl py-3 font-semibold text-base flex items-center justify-center gap-2"
+            >
+              Charge {cart.length > 0 ? formatPrice(subtotal) : ''}
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
       </div>
+
+      {/* ── Modals ── */}
+      {selectedItem && (
+        <ItemModal
+          item={selectedItem}
+          onClose={() => setSelectedItem(null)}
+          onAdd={addToCart}
+        />
+      )}
+      {showPayment && (
+        <PaymentModal
+          total={subtotal}
+          onClose={() => setShowPayment(false)}
+          onComplete={handlePaymentComplete}
+        />
+      )}
     </div>
   );
 }
