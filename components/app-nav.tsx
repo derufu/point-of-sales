@@ -14,7 +14,7 @@ const NAV_ITEMS = [
   { href: '/dashboard', label: 'Dashboard' },
   { href: '/pos', label: 'POS' },
   { href: '/menu', label: 'Menu' },
-  { href: '/profile', label: 'Profile' },
+  // { href: '/profile', label: 'Profile' },
 ] as const;
 
 interface AppNavProps {
