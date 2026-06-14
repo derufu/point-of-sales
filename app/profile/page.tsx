@@ -11,6 +11,8 @@ import { Card, CardContent, CardHeader, CardDescription, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Coffee, Loader2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 
 interface ProfileData {
   store_name: string;
@@ -26,6 +28,7 @@ interface ProfileData {
 }
 
 export default function ProfilePage() {
+  const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -48,13 +51,12 @@ export default function ProfilePage() {
       const { data: { user } } = await supabase.auth.getUser();
 
       if (!user) {
-        window.location.href = '/auth/login';
+        router.push('/auth/login');
         return;
       }
 
       setUser(user);
 
-      // Load profile from database
       const profile = await getProfile(user.id);
       if (profile) {
         setProfileData({
@@ -80,7 +82,7 @@ export default function ProfilePage() {
     };
 
     loadProfile();
-  }, []);
+  }, [router]);
 
   const handleSaveProfile = async () => {
     if (!user) return;
@@ -88,11 +90,10 @@ export default function ProfilePage() {
     setSaving(true);
     try {
       await updateProfile(user.id, profileData);
-      // Show success message
-      alert('Profile updated successfully!');
+      toast.success('Profile saved successfully!');
     } catch (error) {
       console.error('Error saving profile:', error);
-      alert('Failed to save profile');
+      toast.error('Failed to save profile. Please try again.');
     } finally {
       setSaving(false);
     }
