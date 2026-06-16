@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // 1. Skip middleware for core authentication callbacks/pages
   if (pathname.startsWith('/auth/')) {
     return NextResponse.next();
   }
@@ -31,20 +32,38 @@ export async function middleware(request: NextRequest) {
     }
   );
 
+  // Safely retrieve user data (validates JWT server-side)
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Redirect / based on auth state
+  // Helper boolean to check if email is confirmed
+  const isEmailVerified = !!user?.email_confirmed_at;
+
+  // 2. Redirect root path `/` based on complete auth state
   if (pathname === '/') {
-    return user
-      ? NextResponse.redirect(new URL('/dashboard', request.url))
-      : NextResponse.redirect(new URL('/auth/login', request.url));
+    if (!user) {
+      return NextResponse.redirect(new URL('/auth/login', request.url));
+    }
+    if (!isEmailVerified) {
+      return NextResponse.redirect(new URL('/auth/verify-email', request.url));
+    }
+    return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 
+  // 3. Define and evaluate highly protected app routes
   const protectedRoutes = ['/dashboard', '/pos', '/menu', '/profile'];
-  if (!user && protectedRoutes.some((route) => pathname.startsWith(route))) {
-    return NextResponse.redirect(new URL('/auth/login', request.url));
+  const isAccessingProtectedRoute = protectedRoutes.some((route) => pathname.startsWith(route));
+
+  if (isAccessingProtectedRoute) {
+    // Scenario A: Completely unauthenticated
+    if (!user) {
+      return NextResponse.redirect(new URL('/auth/login', request.url));
+    }
+    // Scenario B: Logged in but email is unverified
+    if (!isEmailVerified) {
+      return NextResponse.redirect(new URL('/auth/verify-email', request.url));
+    }
   }
 
   return response;
