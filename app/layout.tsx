@@ -18,9 +18,34 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "CaféPOS - Coffee Shop Point of Sale System",
-  description: "CaféPOS is a modern point of sale system designed specifically for coffee shops. Manage your menu, take orders, and track sales with ease.",
-};
+  title: {
+    default: "CaféPOS - Coffee Shop Point of Sale System",
+    template: '%s | CaféPOS',
+  },
+  description:
+   "CaféPOS is a modern point of sale system designed specifically for coffee shops. Manage your menu, take orders, and track sales with ease.",
+
+  icons: {
+    icon: [
+      // {
+      //   url: '/favicon/favicon-light.svg',
+      //   media: '(prefers-color-scheme: light)',
+      //   type: 'image/svg+xml',
+      // },
+      // {
+      //   url: '/favicon/favicon-dark.svg',
+      //   media: '(prefers-color-scheme: dark)',
+      //   type: 'image/svg+xml',
+      // },
+      {
+        url: '/favicon/favicon.svg',
+        type: 'image/svg+xml',
+      },
+    ],
+    shortcut: '/favicon/favicon.ico',
+    apple: '/favicon/apple-touch-icon.png',
+  },
+}
 
 export default function RootLayout({
   children,
