@@ -30,7 +30,8 @@ function LoginForm() {
 
   const infoMessage = reasonMessages[urlReason ?? ''] ?? urlMessage ?? null;
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // FIX 1: Updated to modern, non-deprecated SubmitEvent with the generic type
+  const handleSubmit = async (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
@@ -166,10 +167,10 @@ function LoginForm() {
   );
 }
 
-// useSearchParams requires Suspense boundary
+// FIX 2: Added the required fallback prop to Suspense
 export default function LoginPage() {
   return (
-    <Suspense>
+    <Suspense fallback={null}>
       <LoginForm />
     </Suspense>
   );
