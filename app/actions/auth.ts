@@ -9,39 +9,21 @@ import { z } from "zod";
 // SCHEMAS
 // ============================================================
 
-const SignupFormSchema = z.object({
-  name: z
-    .string()
-    .min(2, "Name must be at least 2 characters")
-    .max(100, "Name must not exceed 100 characters"),
+const SignupSchema = z.object({
   email: z.email("Invalid email address"),
   password: z
     .string()
-    .min(8, "Password must be at least 8 characters")
-    .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
-    .regex(/[0-9]/, "Password must contain at least one number")
-    .regex(
-      /[!@#$%^&*]/,
-      "Password must contain at least one special character (!@#$%^&*)"
-    ),
+    .min(6, "Password must be at least 6 characters"),
+  storeName: z
+    .string()
+    .min(2, "Coffee shop name must be at least 2 characters")
+    .max(100, "Coffee shop name must not exceed 100 characters"),
 });
 
-const LoginFormSchema = z.object({
+const LoginSchema = z.object({
   email: z.email("Invalid email address"),
   password: z.string().min(1, "Password is required"),
 });
-
-// ============================================================
-// TYPES
-// ============================================================
-
-export type FormState<T extends string = string> = {
-  errors?: Partial<Record<T, string[]>>;
-  message?: string;
-};
-
-export type SignupFormState = FormState<"name" | "email" | "password">;
-export type LoginFormState = FormState<"email" | "password">;
 
 // ============================================================
 // RATE LIMITER (in-memory)
@@ -89,28 +71,38 @@ async function getClientIp(): Promise<string> {
 // ============================================================
 
 export async function signup(
-  state: SignupFormState,
-  formData: FormData
-): Promise<SignupFormState> {
-  const validatedFields = SignupFormSchema.safeParse({
-    name: formData.get("name"),
-    email: formData.get("email"),
-    password: formData.get("password"),
-  });
+  email: string,
+  password: string,
+  storeName: string
+): Promise<{ error?: string }> {
+  // 1. Validate
+  const validatedFields = SignupSchema.safeParse({ email, password, storeName });
 
   if (!validatedFields.success) {
-    return { errors: validatedFields.error.flatten().fieldErrors };
+    const errors = validatedFields.error.flatten().fieldErrors;
+    return {
+      error:
+        errors.storeName?.[0] ??
+        errors.email?.[0] ??
+        errors.password?.[0] ??
+        "Invalid input.",
+    };
   }
 
-  const { email, password, name } = validatedFields.data;
   const supabase = await createClient();
 
+  // 2. Attempt signup
   const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: { data: { full_name: name } },
+    email: validatedFields.data.email,
+    password: validatedFields.data.password,
+    options: {
+      data: {
+        store_name: validatedFields.data.storeName,
+      },
+    },
   });
 
+  // 3. Handle specific Supabase errors
   if (error) {
     console.error("[signup] Supabase error:", error.message);
 
@@ -119,26 +111,28 @@ export async function signup(
       error.message.toLowerCase().includes("already exists") ||
       error.code === "user_already_exists"
     ) {
-      return {
-        errors: {
-          email: ["An account with this email already exists. Please log in."],
-        },
-      };
+      return { error: "An account with this email already exists. Please log in." };
     }
 
     if (error.message.toLowerCase().includes("invalid email")) {
-      return { errors: { email: ["Please enter a valid email address."] } };
+      return { error: "Please enter a valid email address." };
     }
 
-    return { message: "An error occurred during signup. Please try again." };
+    if (error.message.toLowerCase().includes("password")) {
+      return { error: error.message };
+    }
+
+    return { error: "An error occurred during signup. Please try again." };
   }
 
   if (!data.user) {
-    return { message: "Signup failed. Please try again." };
+    return { error: "Signup failed. Please try again." };
   }
 
-  redirect("/auth/login?message=Check your email to confirm your account");
+  // No error — caller (signup page) handles redirect to verify-email
+  return {};
 }
+
 // ============================================================
 // LOGIN
 // ============================================================
@@ -158,8 +152,8 @@ export async function login(
     };
   }
 
-  // 2. Validate fields
-  const validatedFields = LoginFormSchema.safeParse({ email, password });
+  // 2. Validate
+  const validatedFields = LoginSchema.safeParse({ email, password });
 
   if (!validatedFields.success) {
     const errors = validatedFields.error.flatten().fieldErrors;
@@ -203,6 +197,22 @@ export async function login(
 
   redirect("/");
 }
+
+// ============================================================
+// LOGOUT
+// ============================================================
+
+export async function logout() {
+  const supabase = await createClient();
+  const { error } = await supabase.auth.signOut();
+
+  if (error) {
+    console.error("[logout] Supabase signOut error:", error.message);
+  }
+
+  redirect("/auth/login");
+}
+
 // ============================================================
 // GET USER
 // ============================================================
@@ -265,7 +275,7 @@ export async function getSessionInfo() {
     expiresAt,
     expiresInSeconds,
     isExpired: now >= expiresAt,
-    isExpiringSoon: expiresInSeconds <= 5 * 60, // within 5 minutes
+    isExpiringSoon: expiresInSeconds <= 5 * 60,
   };
 }
 

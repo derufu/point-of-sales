@@ -18,30 +18,31 @@ export default function SignupPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setLoading(true);
+// Add <HTMLFormElement> generic parameter
+const handleSubmit = async (e: React.SubmitEvent<HTMLFormElement>) => {
+  e.preventDefault();
+  setError(null);
+  setLoading(true);
 
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters');
-      setLoading(false);
-      return;
-    }
+  if (password.length < 6) {
+    setError('Password must be at least 6 characters');
+    setLoading(false);
+    return;
+  }
 
-    try {
-      const result = await signup(email, password, storeName);
-      if (result?.error) {
-        setError(result.error);
-      } else {
-        router.push(`/auth/verify-email?email=${encodeURIComponent(email)}`);
-      }
-    } catch {
-      setError('An unexpected error occurred');
-    } finally {
-      setLoading(false);
+  try {
+    const result = await signup(email, password, storeName);
+    if (result?.error) {
+      setError(result.error);
+    } else {
+      router.push(`/auth/verify-email?email=${encodeURIComponent(email)}`);
     }
-  };
+  } catch {
+    setError('An unexpected error occurred');
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 flex items-center justify-center p-4">
@@ -79,6 +80,7 @@ export default function SignupPage() {
                 onChange={(e) => setStoreName(e.target.value)}
                 required
                 disabled={loading}
+                autoComplete="organization"
                 className="rounded-lg h-10 bg-slate-50 dark:bg-slate-700 border-slate-200 dark:border-slate-600"
               />
             </div>
@@ -95,6 +97,7 @@ export default function SignupPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 disabled={loading}
+                autoComplete="email"
                 className="rounded-lg h-10 bg-slate-50 dark:bg-slate-700 border-slate-200 dark:border-slate-600"
               />
             </div>
@@ -111,6 +114,7 @@ export default function SignupPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 disabled={loading}
+                autoComplete="new-password"
                 className="rounded-lg h-10 bg-slate-50 dark:bg-slate-700 border-slate-200 dark:border-slate-600"
               />
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
