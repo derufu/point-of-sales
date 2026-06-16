@@ -2,24 +2,49 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Coffee, Mail, ArrowRight, RefreshCw, CheckCircle, LogIn } from 'lucide-react';
+import { Coffee, Mail, ArrowRight, RefreshCw, CheckCircle, LogIn, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import Link from 'next/link';
+import { createClient } from '@/lib/supabase/client';
 
 // ✅ Wrapped in Suspense because useSearchParams() requires it in Next.js App Router
 function VerifyEmailContent() {
   const searchParams = useSearchParams();
   const email = searchParams.get('email') ?? '';
 
-  const [resendStatus, setResendStatus] = useState<'idle' | 'sending' | 'sent'>('idle');
+  const [resendStatus, setResendStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
+  const [errorMessage, setErrorMessage] = useState('');
   const [countdown, setCountdown] = useState(0);
 
   const handleResend = async () => {
+    if (!email) {
+      setResendStatus('error');
+      setErrorMessage('No email address found. Please sign up again.');
+      return;
+    }
+
     setResendStatus('sending');
-    // TODO: call your resend verification email action here, e.g.:
-    // await resendVerificationEmail(email);
-    await new Promise((res) => setTimeout(res, 1200)); // simulate
+    setErrorMessage('');
+
+    const supabase = createClient();
+
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email,
+      options: {
+        // must match the redirect used at sign-up time and be present
+        // in Supabase's Redirect URLs allow list
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+      },
+    });
+
+    if (error) {
+      setResendStatus('error');
+      setErrorMessage(error.message);
+      return;
+    }
+
     setResendStatus('sent');
     setCountdown(60);
   };
@@ -95,18 +120,25 @@ function VerifyEmailContent() {
             </div>
 
             <div className="border-t border-slate-100 dark:border-slate-700 pt-6 space-y-3">
+              {resendStatus === 'error' && (
+                <div className="flex items-start gap-2 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 rounded-lg p-3">
+                  <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                  <span>{errorMessage}</span>
+                </div>
+              )}
+
               <Button
                 onClick={handleResend}
-                disabled={resendStatus !== 'idle'}
+                disabled={resendStatus === 'sending' || countdown > 0}
                 className="w-full rounded-lg font-semibold bg-amber-600 hover:bg-amber-700 text-white disabled:opacity-60"
               >
                 {resendStatus === 'sending' && <RefreshCw className="w-4 h-4 mr-2 animate-spin" />}
                 {resendStatus === 'sent' && <CheckCircle className="w-4 h-4 mr-2" />}
-                {resendStatus === 'idle' && <Mail className="w-4 h-4 mr-2" />}
+                {(resendStatus === 'idle' || resendStatus === 'error') && <Mail className="w-4 h-4 mr-2" />}
                 {resendStatus === 'sending'
                   ? 'Sending…'
-                  : resendStatus === 'sent'
-                  ? `Email sent${countdown > 0 ? ` · resend in ${countdown}s` : ''}`
+                  : countdown > 0
+                  ? `Resend in ${countdown}s`
                   : 'Resend verification email'}
               </Button>
 
