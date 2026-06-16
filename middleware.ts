@@ -37,8 +37,8 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Helper boolean to check if email is confirmed
-  const isEmailVerified = !!user?.email_confirmed_at;
+  // Robust verification check using both timestamp and metadata boolean
+  const isEmailVerified = !!user?.email_confirmed_at || !!user?.user_metadata?.email_verified;
 
   // 2. Redirect root path `/` based on complete auth state
   if (pathname === '/') {
