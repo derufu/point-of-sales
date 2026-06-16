@@ -8,15 +8,13 @@ import { Card } from '@/components/ui/card';
 import { login } from '@/app/actions/auth';
 import { Coffee, Loader2 } from 'lucide-react';
 import Link from 'next/link';
-import { createClient } from '@/lib/supabase/client';
+
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const supabase = createClient();
 
-  console.log('Supabase Client:', supabase);
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -75,9 +73,15 @@ export default function LoginPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-slate-700 dark:text-slate-300">
-                Password
-              </Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password" className="text-slate-700 dark:text-slate-300">
+                  Password
+                </Label>
+                {/* Optional: add forgot password link */}
+                {/* <Link href="/auth/forgot-password" className="text-xs text-amber-600 hover:underline">
+                  Forgot password?
+                </Link> */}
+              </div>
               <Input
                 id="password"
                 type="password"
@@ -118,13 +122,6 @@ export default function LoginPage() {
             </p>
           </div>
         </Card>
-
-        {/* Demo Info */}
-        {/* <div className="mt-8 p-4 rounded-lg bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800">
-          <p className="text-sm text-blue-800 dark:text-blue-200">
-            <strong>Demo:</strong> Use any email and password to test. Supabase will handle authentication.
-          </p>
-        </div> */}
       </div>
     </div>
   );

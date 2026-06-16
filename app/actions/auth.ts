@@ -139,15 +139,14 @@ export async function signup(
 
   redirect("/auth/login?message=Check your email to confirm your account");
 }
-
 // ============================================================
 // LOGIN
 // ============================================================
 
 export async function login(
-  state: LoginFormState,
-  formData: FormData
-): Promise<LoginFormState> {
+  email: string,
+  password: string
+): Promise<{ error?: string }> {
   // 1. Rate limiting
   const ip = await getClientIp();
   const { allowed, retryAfterMs } = checkRateLimit(ip);
@@ -155,25 +154,27 @@ export async function login(
   if (!allowed) {
     const minutes = Math.ceil((retryAfterMs ?? 0) / 60000);
     return {
-      message: `Too many login attempts. Please try again in ${minutes} minute${minutes !== 1 ? "s" : ""}.`,
+      error: `Too many login attempts. Please try again in ${minutes} minute${minutes !== 1 ? "s" : ""}.`,
     };
   }
 
   // 2. Validate fields
-  const validatedFields = LoginFormSchema.safeParse({
-    email: formData.get("email"),
-    password: formData.get("password"),
-  });
+  const validatedFields = LoginFormSchema.safeParse({ email, password });
 
   if (!validatedFields.success) {
-    return { errors: validatedFields.error.flatten().fieldErrors };
+    const errors = validatedFields.error.flatten().fieldErrors;
+    return {
+      error: errors.email?.[0] ?? errors.password?.[0] ?? "Invalid input.",
+    };
   }
 
-  const { email, password } = validatedFields.data;
   const supabase = await createClient();
 
   // 3. Attempt login
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const { error } = await supabase.auth.signInWithPassword({
+    email: validatedFields.data.email,
+    password: validatedFields.data.password,
+  });
 
   if (error) {
     console.error("[login] Supabase error:", error.message);
@@ -183,18 +184,18 @@ export async function login(
       error.message.toLowerCase().includes("credentials") ||
       error.message.toLowerCase().includes("not found")
     ) {
-      return { message: "Invalid email or password. Please try again." };
+      return { error: "Invalid email or password. Please try again." };
     }
 
     if (error.message.toLowerCase().includes("email not confirmed")) {
-      return { message: "Please confirm your email address before logging in." };
+      return { error: "Please confirm your email address before logging in." };
     }
 
     if (error.message.toLowerCase().includes("too many requests")) {
-      return { message: "Too many attempts. Please wait a few minutes and try again." };
+      return { error: "Too many attempts. Please wait a few minutes and try again." };
     }
 
-    return { message: "Login failed. Please try again." };
+    return { error: "Login failed. Please try again." };
   }
 
   // 4. Reset rate limit on success
@@ -202,22 +203,6 @@ export async function login(
 
   redirect("/");
 }
-
-// ============================================================
-// LOGOUT
-// ============================================================
-
-export async function logout() {
-  const supabase = await createClient();
-  const { error } = await supabase.auth.signOut();
-
-  if (error) {
-    console.error("[logout] Supabase signOut error:", error.message);
-  }
-
-  redirect("/auth/login");
-}
-
 // ============================================================
 // GET USER
 // ============================================================
