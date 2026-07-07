@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { AppNav } from '@/components/app-nav';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -19,6 +19,7 @@ import {
   GripVertical,
   ImagePlus,
 } from 'lucide-react';
+import { getMenuItems, saveMenuItems } from '@/lib/pos/storage';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -411,13 +412,22 @@ function DeleteModal({
 // ─── Menu Page ────────────────────────────────────────────────────────────────
 
 export default function MenuPage() {
-  const [items, setItems] = useState<MenuItem[]>(INITIAL_ITEMS);
+  const [items, setItems] = useState<MenuItem[]>([]);
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState<Category | 'All'>('All');
   const [editItem, setEditItem] = useState<MenuItem | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [deleteItem, setDeleteItem] = useState<MenuItem | null>(null);
   const [view, setView] = useState<'grid' | 'table'>('grid');
+
+  useEffect(() => {
+    setItems(getMenuItems());
+  }, []);
+
+  const persist = (updated: MenuItem[]) => {
+    setItems(updated);
+    saveMenuItems(updated);
+  };
 
   const filtered = useMemo(() => {
     return items.filter((item) => {
@@ -449,22 +459,20 @@ export default function MenuPage() {
   }, [items]);
 
   const handleSave = (item: MenuItem) => {
-    setItems((prev) =>
-      prev.find((i) => i.id === item.id)
-        ? prev.map((i) => (i.id === item.id ? item : i))
-        : [...prev, item]
+    persist(
+      items.find((i) => i.id === item.id)
+        ? items.map((i) => (i.id === item.id ? item : i))
+        : [...items, item]
     );
   };
 
   const handleDelete = (id: string) => {
-    setItems((prev) => prev.filter((i) => i.id !== id));
+    persist(items.filter((i) => i.id !== id));
     setDeleteItem(null);
   };
 
   const toggleAvailable = (id: string) => {
-    setItems((prev) =>
-      prev.map((i) => (i.id === id ? { ...i, available: !i.available } : i))
-    );
+    persist(items.map((i) => (i.id === id ? { ...i, available: !i.available } : i)));
   };
 
   const m = (item: MenuItem) => margin(item.basePrice, item.cost);

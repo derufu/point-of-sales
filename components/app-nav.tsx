@@ -14,7 +14,9 @@ const NAV_ITEMS = [
   { href: '/dashboard', label: 'Dashboard' },
   { href: '/pos', label: 'POS' },
   { href: '/menu', label: 'Menu' },
-  // { href: '/profile', label: 'Profile' },
+  { href: '/inventory', label: 'Inventory' },
+  { href: '/reports', label: 'Reports' },
+  { href: '/promos', label: 'Promos' },
 ] as const;
 
 interface AppNavProps {
@@ -61,7 +63,7 @@ export function AppNav({ right, className, containerClassName, sticky = true }: 
               <Coffee className="w-4 h-4 text-white" />
             </div>
             <span className="text-lg font-semibold text-slate-900 dark:text-white">
-              BrewPOS
+              CaféPOS
             </span>
             <span className="ml-1 text-[11px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400 font-medium">
               ● Live
@@ -69,7 +71,7 @@ export function AppNav({ right, className, containerClassName, sticky = true }: 
           </Link>
         </div>
 
-        <nav className="hidden md:flex items-center gap-1">
+        <nav className="hidden lg:flex items-center gap-1">
           {NAV_ITEMS.map((item) => (
             <Link
               key={item.href}

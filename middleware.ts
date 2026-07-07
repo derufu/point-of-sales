@@ -52,7 +52,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // 3. Define and evaluate highly protected app routes
-  const protectedRoutes = ['/dashboard', '/pos', '/menu', '/profile'];
+  const protectedRoutes = ['/dashboard', '/pos', '/menu', '/profile', '/inventory', '/reports', '/promos'];
   const isAccessingProtectedRoute = protectedRoutes.some((route) => pathname.startsWith(route));
 
   if (isAccessingProtectedRoute) {
@@ -70,5 +70,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/', '/dashboard/:path*', '/profile/:path*', '/pos/:path*', '/menu/:path*'],
+  matcher: ['/', '/dashboard/:path*', '/profile/:path*', '/pos/:path*', '/menu/:path*', '/inventory/:path*', '/reports/:path*', '/promos/:path*'],
 };

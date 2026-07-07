@@ -37,8 +37,15 @@ function AuthErrorContent() {
   const searchParams = useSearchParams();
   const errorCode = searchParams.get('error_code') ?? '';
   const errorDescription = searchParams.get('error_description') ?? '';
+  const message = searchParams.get('message') ?? '';
 
-  const config = ERROR_CONFIG[errorCode] ?? FALLBACK;
+  const config = ERROR_CONFIG[errorCode] ?? (message
+    ? {
+        title: 'Authentication error',
+        message: decodeURIComponent(message),
+        action: 'login' as const,
+      }
+    : FALLBACK);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 flex flex-col">
@@ -119,10 +126,10 @@ function AuthErrorContent() {
           </Card>
 
           {/* Debug info — only shown in dev */}
-          {process.env.NODE_ENV === 'development' && errorDescription && (
+          {process.env.NODE_ENV === 'development' && (errorDescription || message) && (
             <div className="p-4 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
               <p className="text-xs font-mono text-slate-500 dark:text-slate-400 break-all">
-                <span className="font-semibold">debug:</span> {errorCode} — {errorDescription}
+                <span className="font-semibold">debug:</span> {errorCode || 'message'} — {errorDescription || message}
               </p>
             </div>
           )}

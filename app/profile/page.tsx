@@ -5,12 +5,12 @@ import { User } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
 import { AppNav } from '@/components/app-nav';
 import { getProfile, updateProfile } from '@/lib/services/profile';
-import { logout } from '@/app/actions/auth';
+import { logout, changePassword } from '@/app/actions/auth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardDescription, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Coffee, Loader2 } from 'lucide-react';
+import { Coffee, Loader2, Lock } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
@@ -32,6 +32,9 @@ export default function ProfilePage() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [profileData, setProfileData] = useState<ProfileData>({
     store_name: '',
     email: '',
@@ -101,6 +104,24 @@ export default function ProfilePage() {
 
   const handleLogout = async () => {
     await logout();
+  };
+
+  const handleChangePassword = async () => {
+    setChangingPassword(true);
+    try {
+      const result = await changePassword(newPassword, confirmPassword);
+      if (result?.error) {
+        toast.error(result.error);
+      } else {
+        toast.success('Password updated successfully!');
+        setNewPassword('');
+        setConfirmPassword('');
+      }
+    } catch {
+      toast.error('Failed to change password.');
+    } finally {
+      setChangingPassword(false);
+    }
   };
 
   if (loading) {
@@ -317,6 +338,52 @@ export default function ProfilePage() {
               <CardDescription>Manage your account preferences.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              <div className="p-4 rounded-lg bg-slate-50 dark:bg-slate-700 space-y-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <Lock className="w-4 h-4 text-slate-400" />
+                  <p className="font-medium text-slate-900 dark:text-white">Change password</p>
+                </div>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="grid gap-2">
+                    <Label htmlFor="newPassword">New password</Label>
+                    <Input
+                      id="newPassword"
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="At least 6 characters"
+                      className="bg-white dark:bg-slate-800"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="confirmPassword">Confirm password</Label>
+                    <Input
+                      id="confirmPassword"
+                      type="password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="Re-enter password"
+                      className="bg-white dark:bg-slate-800"
+                    />
+                  </div>
+                </div>
+                <Button
+                  onClick={handleChangePassword}
+                  disabled={changingPassword || !newPassword}
+                  variant="outline"
+                  className="rounded-lg"
+                >
+                  {changingPassword ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Updating...
+                    </>
+                  ) : (
+                    'Update password'
+                  )}
+                </Button>
+              </div>
+
               <div className="flex items-center justify-between p-4 rounded-lg bg-slate-50 dark:bg-slate-700">
                 <div>
                   <p className="font-medium text-slate-900 dark:text-white">Sign Out</p>

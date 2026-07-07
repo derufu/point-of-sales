@@ -10,7 +10,7 @@ import { z } from "zod";
 // ============================================================
 
 const SignupSchema = z.object({
-  email: z.email("Invalid email address"),
+  email: z.string().email("Invalid email address"),
   password: z
     .string()
     .min(6, "Password must be at least 6 characters"),
@@ -21,8 +21,22 @@ const SignupSchema = z.object({
 });
 
 const LoginSchema = z.object({
-  email: z.email("Invalid email address"),
+  email: z.string().email("Invalid email address"),
   password: z.string().min(1, "Password is required"),
+});
+
+const ForgotPasswordSchema = z.object({
+  email: z.string().email("Invalid email address"),
+});
+
+const ResetPasswordSchema = z.object({
+  password: z
+    .string()
+    .min(6, "Password must be at least 6 characters"),
+  confirmPassword: z.string().min(1, "Please confirm your password"),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords do not match",
+  path: ["confirmPassword"],
 });
 
 // ============================================================
@@ -92,10 +106,13 @@ export async function signup(
   const supabase = await createClient();
 
   // 2. Attempt signup
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+
   const { data, error } = await supabase.auth.signUp({
     email: validatedFields.data.email,
     password: validatedFields.data.password,
     options: {
+      emailRedirectTo: `${siteUrl}/auth/callback`,
       data: {
         store_name: validatedFields.data.storeName,
       },
@@ -313,4 +330,115 @@ export async function isSessionExpired(): Promise<boolean> {
 
   const now = Math.floor(Date.now() / 1000);
   return now >= (session.expires_at ?? 0);
+}
+
+// ============================================================
+// FORGOT PASSWORD
+// ============================================================
+
+export async function requestPasswordReset(
+  email: string
+): Promise<{ error?: string; success?: boolean }> {
+  const validatedFields = ForgotPasswordSchema.safeParse({ email });
+
+  if (!validatedFields.success) {
+    const errors = validatedFields.error.flatten().fieldErrors;
+    return { error: errors.email?.[0] ?? "Invalid email address." };
+  }
+
+  const supabase = await createClient();
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+
+  const { error } = await supabase.auth.resetPasswordForEmail(
+    validatedFields.data.email,
+    {
+      redirectTo: `${siteUrl}/auth/callback?next=/auth/reset-password`,
+    }
+  );
+
+  if (error) {
+    console.error("[requestPasswordReset] error:", error.message);
+    return { error: "Unable to send reset email. Please try again." };
+  }
+
+  return { success: true };
+}
+
+// ============================================================
+// RESET PASSWORD
+// ============================================================
+
+export async function updatePassword(
+  password: string,
+  confirmPassword: string
+): Promise<{ error?: string; success?: boolean }> {
+  const validatedFields = ResetPasswordSchema.safeParse({ password, confirmPassword });
+
+  if (!validatedFields.success) {
+    const errors = validatedFields.error.flatten().fieldErrors;
+    return {
+      error:
+        errors.password?.[0] ??
+        errors.confirmPassword?.[0] ??
+        "Invalid password.",
+    };
+  }
+
+  const supabase = await createClient();
+
+  const { error } = await supabase.auth.updateUser({
+    password: validatedFields.data.password,
+  });
+
+  if (error) {
+    console.error("[updatePassword] error:", error.message);
+    if (error.message.toLowerCase().includes("session")) {
+      return { error: "Your reset link has expired. Please request a new one." };
+    }
+    return { error: "Unable to update password. Please try again." };
+  }
+
+  return { success: true };
+}
+
+// ============================================================
+// CHANGE PASSWORD (logged-in user)
+// ============================================================
+
+export async function changePassword(
+  newPassword: string,
+  confirmPassword: string
+): Promise<{ error?: string; success?: boolean }> {
+  const validatedFields = ResetPasswordSchema.safeParse({
+    password: newPassword,
+    confirmPassword,
+  });
+
+  if (!validatedFields.success) {
+    const errors = validatedFields.error.flatten().fieldErrors;
+    return {
+      error:
+        errors.password?.[0] ??
+        errors.confirmPassword?.[0] ??
+        "Invalid password.",
+    };
+  }
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "You must be logged in to change your password." };
+  }
+
+  const { error } = await supabase.auth.updateUser({
+    password: validatedFields.data.password,
+  });
+
+  if (error) {
+    console.error("[changePassword] error:", error.message);
+    return { error: "Unable to change password. Please try again." };
+  }
+
+  return { success: true };
 }
