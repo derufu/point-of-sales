@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { AppNav } from '@/components/app-nav';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -20,6 +20,9 @@ import {
   Receipt,
 } from 'lucide-react';
 import Link from 'next/link';
+import { getTodayOrders, getOrdersInRange, getInventory } from '@/lib/pos/storage';
+import { formatPrice, formatDateTime } from '@/lib/pos/format';
+import type { OrderRecord, PaymentMethod } from '@/lib/pos/types';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -67,41 +70,9 @@ interface StockItem {
   severity: 'danger' | 'warning';
 }
 
-// ─── Static Data ──────────────────────────────────────────────────────────────
-
-const ORDERS: Order[] = [
-  { num: '#0147', items: 'Latte, Croissant', status: 'ready', amount: '₱185', time: '2:38 PM' },
-  { num: '#0146', items: 'Cold Brew × 2', status: 'making', amount: '₱210', time: '2:35 PM' },
-  { num: '#0145', items: 'Americano, Sandwich', status: 'ready', amount: '₱160', time: '2:31 PM' },
-  { num: '#0144', items: 'Matcha Latte', status: 'queued', amount: '₱130', time: '2:28 PM' },
-  { num: '#0143', items: 'Cappuccino, Muffin', status: 'ready', amount: '₱175', time: '2:20 PM' },
-  { num: '#0142', items: 'Espresso × 3', status: 'queued', amount: '₱225', time: '2:15 PM' },
-];
-
-const TOP_ITEMS: TopItem[] = [
-  { name: 'Latte', sub: 'Hot · 12oz', count: 38, rev: '₱4,560', pct: 100 },
-  { name: 'Cold Brew', sub: 'Iced · 16oz', count: 29, rev: '₱3,480', pct: 76 },
-  { name: 'Americano', sub: 'Hot · 8oz', count: 24, rev: '₱2,160', pct: 63 },
-  { name: 'Matcha Latte', sub: 'Hot · 12oz', count: 18, rev: '₱2,340', pct: 47 },
-  { name: 'Cappuccino', sub: 'Hot · 8oz', count: 15, rev: '₱1,800', pct: 39 },
-];
-
-const STAFF: StaffMember[] = [
-  { name: 'Maria R.', initials: 'MR', orders: 42, amt: '₱5,460' },
-  { name: 'Carlo D.', initials: 'CD', orders: 38, amt: '₱4,890' },
-  { name: 'Jessa P.', initials: 'JP', orders: 35, amt: '₱4,230' },
-  { name: 'Renz A.', initials: 'RA', orders: 32, amt: '₱3,852' },
-];
-
-const STOCK_ITEMS: StockItem[] = [
-  { name: 'Oat milk', level: 15, unit: 'cartons left', severity: 'danger' },
-  { name: 'Espresso beans', level: 22, unit: '% remaining', severity: 'warning' },
-  { name: 'Vanilla syrup', level: 1, unit: 'bottle left', severity: 'danger' },
-];
+// ─── Static fallbacks (used when no live data) ────────────────────────────────
 
 const HOURS = ['6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16', '17', '18'];
-const TODAY_DATA = [120, 380, 820, 1240, 1100, 980, 860, 740, 1050, 820, 690, 520, 310];
-const YESTERDAY_DATA = [90, 310, 710, 1100, 980, 860, 780, 690, 920, 750, 620, 470, 280];
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -177,14 +148,100 @@ export default function DashboardPage() {
   const [orderFilter, setOrderFilter] = useState<'all' | OrderStatus>('all');
   const [showYesterday, setShowYesterday] = useState(false);
   const [now, setNow] = useState(new Date());
+  const [todayOrders, setTodayOrders] = useState<OrderRecord[]>([]);
+  const [yesterdayOrders, setYesterdayOrders] = useState<OrderRecord[]>([]);
 
   useEffect(() => {
     const tick = setInterval(() => setNow(new Date()), 60_000);
     return () => clearInterval(tick);
   }, []);
 
+  useEffect(() => {
+    setTodayOrders(getTodayOrders());
+    const all = getOrdersInRange(2);
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yStr = yesterday.toDateString();
+    setYesterdayOrders(all.filter((o) => new Date(o.createdAt).toDateString() === yStr));
+  }, []);
+
+  const todayRevenue = todayOrders.reduce((s, o) => s + o.total, 0);
+  const yesterdayRevenue = yesterdayOrders.reduce((s, o) => s + o.total, 0);
+  const revenueChange = yesterdayRevenue > 0
+    ? ((todayRevenue - yesterdayRevenue) / yesterdayRevenue * 100).toFixed(1)
+    : '0';
+  const avgOrder = todayOrders.length > 0 ? todayRevenue / todayOrders.length : 0;
+
+  const orders: Order[] = todayOrders.slice(0, 8).map((o) => ({
+    num: `#${o.orderNumber}`,
+    items: o.items.map((i) => `${i.name}${i.qty > 1 ? ` ×${i.qty}` : ''}`).join(', '),
+    status: 'ready' as OrderStatus,
+    amount: formatPrice(o.total),
+    time: formatDateTime(o.createdAt).split(', ').pop() ?? '',
+  }));
+
+  const topItems: TopItem[] = useMemo(() => {
+    const map = new Map<string, { count: number; revenue: number }>();
+    todayOrders.forEach((o) => {
+      o.items.forEach((item) => {
+        const existing = map.get(item.name) ?? { count: 0, revenue: 0 };
+        map.set(item.name, { count: existing.count + item.qty, revenue: existing.revenue + item.price * item.qty });
+      });
+    });
+    const sorted = Array.from(map.entries()).sort((a, b) => b[1].revenue - a[1].revenue).slice(0, 5);
+    const maxRev = sorted[0]?.[1].revenue ?? 1;
+    return sorted.map(([name, data]) => ({
+      name,
+      sub: `${data.count} sold today`,
+      count: data.count,
+      rev: formatPrice(data.revenue),
+      pct: Math.round((data.revenue / maxRev) * 100),
+    }));
+  }, [todayOrders]);
+
+  const stockItems: StockItem[] = useMemo(() => {
+    return getInventory()
+      .filter((i) => i.quantity <= i.minLevel)
+      .slice(0, 5)
+      .map((i) => ({
+        name: i.name,
+        level: i.quantity,
+        unit: i.unit,
+        severity: i.quantity <= i.minLevel * 0.5 ? 'danger' as const : 'warning' as const,
+      }));
+  }, []);
+
+  const hourlyToday = useMemo(() => {
+    const data = new Array(13).fill(0);
+    todayOrders.forEach((o) => {
+      const hour = new Date(o.createdAt).getHours();
+      if (hour >= 6 && hour <= 18) data[hour - 6] += o.total;
+    });
+    return data;
+  }, [todayOrders]);
+
+  const hourlyYesterday = useMemo(() => {
+    const data = new Array(13).fill(0);
+    yesterdayOrders.forEach((o) => {
+      const hour = new Date(o.createdAt).getHours();
+      if (hour >= 6 && hour <= 18) data[hour - 6] += o.total;
+    });
+    return data;
+  }, [yesterdayOrders]);
+
+  const paymentSplit = useMemo(() => {
+    const methods: Record<PaymentMethod, number> = { cash: 0, gcash: 0, card: 0 };
+    todayOrders.forEach((o) => { methods[o.paymentMethod] += o.total; });
+    const total = Object.values(methods).reduce((a, b) => a + b, 0) || 1;
+    return {
+      cash: Math.round((methods.cash / total) * 100),
+      gcash: Math.round((methods.gcash / total) * 100),
+      card: Math.round((methods.card / total) * 100),
+    };
+  }, [todayOrders]);
+
   const filteredOrders =
-    orderFilter === 'all' ? ORDERS : ORDERS.filter((o) => o.status === orderFilter);
+    orderFilter === 'all' ? orders : orders.filter((o) => o.status === orderFilter);
 
   const timeString = now.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' });
   const dateString = now.toLocaleDateString('en-PH', { weekday: 'short', month: 'short', day: 'numeric' });
@@ -195,7 +252,7 @@ export default function DashboardPage() {
     datasets: [
       {
         label: 'Today',
-        data: TODAY_DATA,
+        data: hourlyToday,
         backgroundColor: '#b45309',
         borderRadius: 4,
         borderSkipped: false as const,
@@ -204,7 +261,7 @@ export default function DashboardPage() {
         ? [
             {
               label: 'Yesterday',
-              data: YESTERDAY_DATA,
+              data: hourlyYesterday,
               backgroundColor: 'rgba(180,83,9,0.25)',
               borderRadius: 4,
               borderSkipped: false as const,
@@ -243,10 +300,10 @@ export default function DashboardPage() {
   };
 
   const paymentChartData = {
-    labels: ['Cash 40%', 'GCash 35%', 'Card 25%'],
+    labels: [`Cash ${paymentSplit.cash}%`, `GCash ${paymentSplit.gcash}%`, `Card ${paymentSplit.card}%`],
     datasets: [
       {
-        data: [40, 35, 25],
+        data: [paymentSplit.cash, paymentSplit.gcash, paymentSplit.card],
         backgroundColor: ['#b45309', '#d97706', '#fbbf24'],
         borderWidth: 0,
       },
@@ -286,23 +343,23 @@ export default function DashboardPage() {
           <MetricCard
             icon={<Receipt className="w-3.5 h-3.5" />}
             label="Today's revenue"
-            value="₱18,432"
-            sub="+12.4% vs yesterday"
-            trend="up"
+            value={formatPrice(todayRevenue)}
+            sub={`${Number(revenueChange) >= 0 ? '+' : ''}${revenueChange}% vs yesterday`}
+            trend={Number(revenueChange) >= 0 ? 'up' : 'down'}
           />
           <MetricCard
             icon={<ShoppingCart className="w-3.5 h-3.5" />}
             label="Orders"
-            value="147"
-            sub="+8 orders vs yesterday"
-            trend="up"
+            value={String(todayOrders.length)}
+            sub={`${yesterdayOrders.length} yesterday`}
+            trend={todayOrders.length >= yesterdayOrders.length ? 'up' : 'down'}
           />
           <MetricCard
             icon={<CreditCard className="w-3.5 h-3.5" />}
             label="Avg. order value"
-            value="₱125"
-            sub="-₱3 vs yesterday"
-            trend="down"
+            value={formatPrice(avgOrder)}
+            sub="Today"
+            trend="neutral"
           />
           <MetricCard
             icon={<Clock className="w-3.5 h-3.5" />}
@@ -389,7 +446,7 @@ export default function DashboardPage() {
             <Card className="p-5 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700/60 rounded-2xl shadow-none">
               <h2 className="text-sm font-semibold text-slate-900 dark:text-white mb-3">Top items today</h2>
               <div className="space-y-3">
-                {TOP_ITEMS.map((item) => (
+                {topItems.map((item) => (
                   <div key={item.name} className="flex items-center gap-2">
                     <div className="min-w-[90px]">
                       <p className="text-[13px] font-medium text-slate-900 dark:text-white leading-tight">
@@ -442,9 +499,9 @@ export default function DashboardPage() {
               </div>
               <div className="flex justify-center gap-4 mt-3">
                 {[
-                  { color: '#b45309', label: 'Cash', pct: '40%' },
-                  { color: '#d97706', label: 'GCash', pct: '35%' },
-                  { color: '#fbbf24', label: 'Card', pct: '25%' },
+                  { color: '#b45309', label: 'Cash', pct: `${paymentSplit.cash}%` },
+                  { color: '#d97706', label: 'GCash', pct: `${paymentSplit.gcash}%` },
+                  { color: '#fbbf24', label: 'Card', pct: `${paymentSplit.card}%` },
                 ].map((p) => (
                   <div key={p.label} className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400">
                     <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ background: p.color }} />
@@ -461,20 +518,7 @@ export default function DashboardPage() {
           {/* Staff Performance */}
           <Card className="p-5 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700/60 rounded-2xl shadow-none">
             <h2 className="text-sm font-semibold text-slate-900 dark:text-white mb-3">Staff performance</h2>
-            <div className="divide-y divide-slate-100 dark:divide-slate-800">
-              {STAFF.map((s) => (
-                <div key={s.name} className="flex items-center justify-between py-2 first:pt-0 last:pb-0">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-7 h-7 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center text-[10px] font-semibold text-blue-700 dark:text-blue-400">
-                      {s.initials}
-                    </div>
-                    <span className="text-[13px] text-slate-900 dark:text-white">{s.name}</span>
-                  </div>
-                  <span className="text-[12px] text-slate-400">{s.orders} orders</span>
-                  <span className="text-[13px] font-semibold text-slate-900 dark:text-white">{s.amt}</span>
-                </div>
-              ))}
-            </div>
+            <p className="text-sm text-slate-400 py-4 text-center">Staff tracking coming soon</p>
           </Card>
 
           {/* Low Stock Alerts */}
@@ -482,11 +526,11 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-sm font-semibold text-slate-900 dark:text-white">Low stock alerts</h2>
               <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 font-medium">
-                {STOCK_ITEMS.length} items
+                {stockItems.length} items
               </span>
             </div>
             <div className="divide-y divide-slate-100 dark:divide-slate-800">
-              {STOCK_ITEMS.map((s) => (
+              {stockItems.length > 0 ? stockItems.map((s) => (
                 <div key={s.name} className="flex items-center justify-between py-2 first:pt-0 last:pb-0">
                   <div>
                     <p className="text-[13px] text-slate-900 dark:text-white">{s.name}</p>
@@ -504,7 +548,9 @@ export default function DashboardPage() {
                     {s.severity === 'danger' ? 'Critical' : 'Low stock'}
                   </span>
                 </div>
-              ))}
+              )) : (
+                <p className="text-sm text-slate-400 py-4 text-center">All stock levels healthy</p>
+              )}
             </div>
             <Link href="/inventory">
               <Button variant="outline" className="w-full mt-4 rounded-xl text-sm border-slate-200 dark:border-slate-700">
